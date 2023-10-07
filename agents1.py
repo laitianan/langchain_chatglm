@@ -11,7 +11,7 @@ class IntentAgent(BaseSingleActionAgent):
 
     # 通过 In-context Learning 的方式引导模型使用正确的工具
     intent_template: str = """
-    现在有一些意图，类别为{intents}，你的任务是理解用户问题的意图，并判断该问题属于哪一类意图。
+    现在有一些意图，类别为{intents}，你的任务是理解连续对话的意图，并判断该对话最后一个问题属于哪一类意图。
     回复的意图类别必须在提供的类别中，并且必须按格式回复：“意图类别：<>”。
 
     举例：
@@ -79,6 +79,7 @@ class functional_Tool(BaseTool):
     name: str = ""
     description: str = ""
     url: str = ""
+    return_direct = True  # 直接返回结果
 
     def _call_func(self, query):
         raise NotImplementedError("subclass needs to overwrite this method")
@@ -118,11 +119,11 @@ class Character_knowledge_Tool(functional_Tool):
 
     # 生成基于知识的回答
     def _call_func(self, query) -> str:
-        print(f"已知游戏角色信息query******{query}*****")
+        # print(f"已知游戏角色信息query******{query}*****")
         self.get_llm_chain()
         context = "已知游戏角色信息：  Mario: 马里奥是日本电子游戏设计师宫本茂创作的一个角色。他是同名电子游戏系列的主角，也是日本电子游戏公司任天堂的吉祥物。Princess Peach: 碧姬公主，是任天堂著名游戏系列马里奥系列中的重要角色。她是游戏中虚构的蘑菇王国的公主，也是王国的统治者。"
         resp = self.llm_chain.predict(text=context, query=query)
-        print(f"已知游戏角色信息******{resp}*****")
+        # print(f"已知游戏角色信息******{resp}*****")
         return resp
 
     def get_llm_chain(self):
@@ -160,11 +161,11 @@ class Order_select_Tool(functional_Tool):
 
     # 生成基于知识的回答
     def _call_func(self, query) -> str:
-        print(f"已知订单信息查询query******{query}*****")
+        # print(f"已知订单信息查询query******{query}*****")
         self.get_llm_chain()
         context=self.context
         resp = self.llm_chain.predict(text=context, query=query)
-        print(f"订单信息查询******{resp}*****")
+        # print(f"订单信息查询******{resp}*****")
         return resp
 
     def get_llm_chain(self):
@@ -186,23 +187,25 @@ class Order_statistics_Tool(functional_Tool):
     # 用来模拟知识库检索的 prompt, 正经做 retrive 可以使用 向量数据库 和 文本相似度匹配
     data_time = datetime.datetime.now().strftime("%Y.%m.%d %H:%M:%S")
     context = f"""
-        现在有一些历史对话，当前系统时间{data_time},你的任务是根据用户问题生成对应的SQL，其中数据库字段order_time为订单时间，shop_name为店铺名称，shop_ID为店铺ID
-        回复的必须按格式回复：“sql：select sum(pay_money) from order_info where <>=<> and order_time >= DATE_SUB(<>, INTERVAL <> <>)  and order_time <= DATE_SUB(<>, INTERVAL <> <>) ”。
+        现在有一些历史对话，当前系统时间{data_time},你的任务是根据用户最后问题生成对应的SQL，其中数据库字段order_time为订单时间，shop_name为店铺名称，shop_ID为店铺ID
+        回复的必须按格式回复：“sql：select sum(pay_money) from order_info where <>=<> and order_time >= <>  and order_time <= <>) ”。
         举例：
         问题：我想查询店铺123456789的销量近三个月的销量信息？
-        sql：select sum(pay_money) from order_info where shop_ID='123456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH)   and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
+        sql：select sum(pay_money) from order_info where shop_ID='123456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH) 
         问题：查询深圳前海店铺ID12456789销量近15天的销量信息
-        sql：select sum(pay_money) from order_info where shop_ID='12456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH)  and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
+        sql：select sum(pay_money) from order_info where shop_ID='12456789' and order_time >= DATE_SUB(NOW(), INTERVAL 15 Day)  
         问题：我想查询深圳前海店铺销量近15天的销量信息？
-        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB(NOW(), INTERVAL 15 DAY)  and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
-        问题：我想查询深圳前海店铺销量今年七月份到今年十月份初的销量信息？
-        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB('2022-07-01', INTERVAL 0 DAY)  and order_time <= DATE_SUB('2023-10-01', INTERVAL 0 DAY)
+        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB(NOW(), INTERVAL 15 DAY) 
+        问题：我想查询深圳前海店铺今年七月份的销量信息？
+        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= '2023-07-01'  and order_time <= '2023-07-31'
+        问题：我想查询深圳前海店铺今年七月份初到今年九月底的销量信息？
+        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= 2023-07-01'  and order_time <= '2023-10-01'
         """
-
+    # print(context)
     qa_template = """
 
-        请根据下面带```分隔符的文本来生成提取对应的SQL。
-        如果该文本中没有相关店铺信息内容可以回答问题，请直接回复：“sql：<None>”
+        请根据下面带```分隔符的文本对话来生成提取对应的SQL。
+        如果该文本对话中没有相关店铺信息内容可以回答问题，请直接回复：“sql：<None>”
         ```{text}```
         问题：{query}
         """
@@ -232,8 +235,8 @@ class Actor_knowledge_Tool(functional_Tool):
 
     # QA params
     qa_template = """
-    请根据下面带```分隔符的文本来回答问题。
-    如果该文本中没有相关内容可以回答问题，请直接回复：“抱歉，该问题需要更多上下文信息。”
+    请根据下面带```分隔符的文本对话最后的问题来回答问题。
+    如果该文本对话中没有相关内容可以回答问题，请直接回复：“抱歉，该问题需要更多上下文信息。”
     ```{text}```
     问题：{query}
     """
@@ -241,11 +244,11 @@ class Actor_knowledge_Tool(functional_Tool):
     llm_chain: LLMChain = None
 
     def _call_func(self, query) -> str:
-        print(f"已知演员信息query******{query}*****")
+        # print(f"已知演员信息query******{query}*****")
         self.get_llm_chain()
         context = "已知演员信息：  梁朝伟: 1962年6月27日出生于中国香港，祖籍广东台山，华语影视男演员、歌手，国家一级演员, 汤唯: 1979年10月7日出生于浙江省杭州市，毕业于中央戏剧学院导演系本科班，中国内地女演员。"
         resp = self.llm_chain.predict(text=context, query=query)
-        print(f"已知演员信息******{resp}*****")
+        # print(f"已知演员信息******{resp}*****")
         return resp
 
     def get_llm_chain(self):
@@ -254,13 +257,15 @@ class Actor_knowledge_Tool(functional_Tool):
 
 from langchain.agents import AgentExecutor
 from ChatGLM2 import ChatGLM2
-llm = ChatGLM2(temperature=0.9)
+llm = ChatGLM2(temperature=0.95)
 tools = [Character_knowledge_Tool(llm=llm), Actor_knowledge_Tool(llm=llm),Order_select_Tool(llm=llm),Order_statistics_Tool(llm=llm)]
 
 # 选择工具
 agent = IntentAgent(tools=tools, llm=llm)
 # agent.choose_tools("游戏角色马里奥是谁？")
+# print(agent.choose_tools("用户：游戏角色马里奥是谁？\nAI:游戏角色信息查询\n用户：我想查询深圳前海店铺六月份的总销量"))
 
-agent_exec = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True, max_iterations=1)
-# agent_exec.run("查询订单的相关信息？")
-agent_exec.run("我想查询深圳前海店铺八月份的销量")
+agent_exec = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=False, max_iterations=1)
+# # agent_exec.run("查询订单的相关信息？")
+res=agent_exec.run("我想查询深圳前海店铺六月份的总销量")
+print("res:\t",res)
