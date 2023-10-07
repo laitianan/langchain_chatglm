@@ -182,24 +182,21 @@ class Order_statistics_Tool(functional_Tool):
     import datetime
     # 用来模拟知识库检索的 prompt, 正经做 retrive 可以使用 向量数据库 和 文本相似度匹配
     data_time=datetime.datetime.now().strftime("%Y.%m.%d %H:%M:%S")
-    context = f"""
-    现在有一些历史对话，当前系统时间{data_time},你的任务是根据用户问题生成对应的SQL
-    回复的必须按格式回复：“sql：select sum(pay_money) from order_info where <>=<> and order_time >= DATE_SUB(<>, INTERVAL <> <>)  and order_time <= DATE_SUB(<>, INTERVAL <> <>) ”。
+    context = '''现在有一些历史对话，当前系统时间%s,你的任务是根据用户问题抽取对应数据结构,并且需要根据当前系统时间计算开始与结束时间
+    回复的必须按格式回复：“（'店铺名称':<>,'店铺ID':<>,'开始时间':<>,'结束时间':<>）”。
     举例：
-    问题：我想查询店铺123456789的销量近三个月的销量信息？
-    sql：select sum(pay_money) from order_info where shop_ID='123456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH)   and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
-    问题：查询深圳前海店铺ID12456789销量近15天的销量信息
-    sql：select sum(pay_money) from order_info where shop_ID='12456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH)  and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
-    问题：我想查询深圳前海店铺销量近15天的销量信息？
-    sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB(NOW(), INTERVAL 15 DAY)  and order_time <= DATE_SUB(NOW(), INTERVAL 0 DAY)
+    问题：我想查询店铺ID123456789的销量近三个月的销量信息？
+    （'店铺名称':'None','店铺ID':'123456789','开始时间':'2023-07-07','结束时间':'2023-10-07'）
+    问题：查询深圳前海店铺销量近15天的销量信息
+    （'店铺名称':'深圳前海店铺','店铺ID':'None','开始时间':'2023-09-22','结束时间':'2023-10-07'）
     问题：我想查询深圳前海店铺销量今年七月份到今年十月份初的销量信息？
-    sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB('2022-07-01', INTERVAL 0 DAY)  and order_time <= DATE_SUB('2023-10-01', INTERVAL 0 DAY)
-    """
-
+    （'店铺名称':'深圳前海店铺','店铺ID':'None','开始时间':'2022-07-01','结束时间':'2023-10-07'）
+    ''' % data_time
+    print("context:\t",context)
     qa_template = """
     
-    请根据下面带```分隔符的文本来生成提取对应的SQL。
-    如果该文本中没有相关店铺信息内容可以回答问题，请直接回复：“sql：<None>”
+    请根据下面带```分隔符的文本来生成提取数据，并严格按照格式回复。
+    如果该文本中没有相关店铺信息内容可以回答问题，请直接回复：“（'店铺名称':'None','店铺ID':'None','开始时间':'None','结束时间':'None'”）
     ```{text}```
     问题：{query}
     """
@@ -260,4 +257,4 @@ agent = IntentAgent(tools=tools, llm=llm)
 
 agent_exec = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True, max_iterations=1)
 # agent_exec.run("查询订单的相关信息？")
-agent_exec.run("我想查询深圳前海店铺编号2456789销量2022年4月份到去年十月份初的销量信息")
+agent_exec.run("我想查询深圳前海店铺最近三个月的销量")
