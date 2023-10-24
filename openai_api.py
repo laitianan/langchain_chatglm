@@ -114,7 +114,6 @@ async def list_models():
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def create_chat_completion(request: ChatCompletionRequest):
     global model, tokenizer
-
     if request.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Invalid request")
     query = request.messages[-1].content
@@ -131,10 +130,10 @@ async def create_chat_completion(request: ChatCompletionRequest):
                 history.append([prev_messages[i].content, prev_messages[i+1].content])
 
     if request.stream:
-        generate = predict(query, history, request.model)
+        generate = predict(query, history, request)
         return EventSourceResponse(generate, media_type="text/event-stream")
 
-    response, _ = model.chat(tokenizer, query, history=history)
+    response, _ = model.chat(tokenizer, query, history=history,temperature=request.temperature,max_length=request.max_length)
     logging.info("info后台返回值："+str(response))
     print("print后台返回值："+str(response))
     choice_data = ChatCompletionResponseChoice(
@@ -146,7 +145,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
     return ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion")
 
 
-async def predict(query: str, history: List[List[str]], model_id: str):
+async def predict(query: str, history: List[List[str]], request: ChatCompletionRequest):
     global model, tokenizer
     logging.info(str(query))
     print(str(query))
@@ -155,12 +154,12 @@ async def predict(query: str, history: List[List[str]], model_id: str):
         delta=DeltaMessage(role="assistant"),
         finish_reason=None
     )
-    chunk = ChatCompletionResponse(model=model_id, choices=[choice_data], object="chat.completion.chunk")
+    chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
     yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
 
     current_length = 0
 
-    for new_response, _ in model.stream_chat(tokenizer, query, history):
+    for new_response, _ in model.stream_chat(tokenizer, query, history=history,temperature=request.temperature,max_length=request.max_length):
         if len(new_response) == current_length:
             continue
 
@@ -172,7 +171,7 @@ async def predict(query: str, history: List[List[str]], model_id: str):
             delta=DeltaMessage(content=new_text),
             finish_reason=None
         )
-        chunk = ChatCompletionResponse(model=model_id, choices=[choice_data], object="chat.completion.chunk")
+        chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
         yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
 
 
@@ -181,7 +180,7 @@ async def predict(query: str, history: List[List[str]], model_id: str):
         delta=DeltaMessage(),
         finish_reason="stop"
     )
-    chunk = ChatCompletionResponse(model=model_id, choices=[choice_data], object="chat.completion.chunk")
+    chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
     yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
     yield '[DONE]'
 import tiktoken

@@ -1,43 +1,26 @@
-from MyOpenAI import myOpenAi as  OpenAI
+import inspect
 
-import re
-from typing import List, Union
-import textwrap
-import time
 
-from langchain.agents import (
-    Tool,
-    AgentExecutor,
-    LLMSingleActionAgent,
-    AgentOutputParser,
-)
+def get_source_code(function_name):
+    # Get the source code of the function
+    return inspect.getsource(function_name)
+
 from langchain.prompts import StringPromptTemplate
-from langchain import  LLMChain
-from langchain.schema import AgentAction, AgentFinish
-from langchain.prompts import PromptTemplate
+from pydantic import BaseModel, validator
 
-from langchain.llms.base import BaseLLM
+PROMPT = """\
+Given the function name and source code, generate an English language explanation of the function.
+Function Name: {function_name}
+Source Code:
+{source_code}
+Explanation:
+"""
 
-human_message = """TOOLS
-------
-Assistant can ask the user to use tools to look up information that may be helpful in answering the users original question. The tools the human can use are:
-{{tool_names}}
-{{tools}}
 
-{format_instructions}
+class FunctionExplainerPromptTemplate(StringPromptTemplate, BaseModel):
+    pass
+fn_explainer = FunctionExplainerPromptTemplate(input_variables=["function_name"])
 
-USER'S INPUT
---------------------
-Here is the user's input (remember to respond with a markdown code snippet of a json blob with a single action, and NOTHING else):
-
-{{{{input}}}}"""
-
-format_instructions = human_message.format(
-    format_instructions="nidfhaofdhao"
-)
-tool_names=["12456","457896"]
-tool_strings="dfdfdfdf"
-final_prompt = format_instructions.format(
-    tool_names=tool_names, tools=tool_strings,input="456678"
-)
-print(final_prompt.format(input="456678"))
+# Generate a prompt for the function "get_source_code"
+prompt = fn_explainer.format(function_name=get_source_code)
+print(prompt)

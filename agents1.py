@@ -34,6 +34,9 @@ class IntentAgent(BaseSingleActionAgent):
     历史对话：查询深圳前海店铺ID12456789销量近三个月的销量信息？
     意图类别：店铺销量统计信息查询
     
+    历史对话：我想查询2023年六月到八月的的销量？
+    意图类别：店铺销量统计信息查询
+        
     历史对话：查询订单12456789的相关信息？
     意图类别：用户购买订单信息查询
     
@@ -75,14 +78,14 @@ class IntentAgent(BaseSingleActionAgent):
         )
 
 
-        print("buffer_as_str\n"+memory.buffer_as_str)
+        # print("buffer_as_str\n"+memory.buffer_as_str)
         history=memory.buffer_as_str
 
         if history =='' or history is None:
             history="Human: "+query
         else:
             history += "\nHuman: " + query
-        print("-------"+history)
+        # print("-------"+history)
         resp = self.llm_chain.predict(intents=tool_names,intention_summary=tool_strings, history=history)
         print(resp)
         select_tools = [(name, resp.index(name)) for name in tool_names if name in resp]
@@ -117,12 +120,22 @@ from langchain.callbacks.manager import (
 )
 
 
+def merge_history(query):
+    history = memory.buffer_as_str
+    if history == '' or history is None:
+        history = "Human: " + query
+    else:
+        history += "\nHuman: " + query
+    return history
+
 # 重写抽象方法，"call_func"方法执行 tool
 class functional_Tool(BaseTool):
     name: str = ""
     description: str = ""
     url: str = ""
     return_direct = True  # 直接返回结果
+
+
 
     def _call_func(self, query):
         raise NotImplementedError("subclass needs to overwrite this method")
@@ -236,7 +249,7 @@ class No_Understand_Tool_Tool(functional_Tool):
             history="Human: "+query
         else:
             history += "\nHuman: " + query
-        resp = self.llm.predict("当前你的角色是幸福西饼的AI客服，请根据下面的历史聊天记录回答用户问题,聊天记录中的AI是你的角色\n"+history)
+        resp = self.llm.predict("当前你的角色是幸福西饼AI客服,请尽量使用中文回复,请根据下面的历史聊天记录回答用户问题,聊天记录中的AI是你的角色\n"+history)
         try:
             index=resp.index(":")
             if index<=3:
@@ -250,53 +263,112 @@ class No_Understand_Tool_Tool(functional_Tool):
             self.llm_chain = LLMChain(llm=self.llm)
 
 
-
+insert=""
 class Order_statistics_Tool(functional_Tool):
     llm: BaseLanguageModel
 
     # IntentAgent 会根据 description 与 query 的相关性选择工具
     name = "店铺销量统计信息查询"
-    description = "店铺总销量查询信息的工具，输入应该是对指定店铺名称或店铺ID，查询某时间段总销量"
+    description = "销量信息查询工具，主要是店铺总销量查询信息，输入是对指定店铺名称或店铺ID，查询某时间段的总销量"
     import datetime
     # 用来模拟知识库检索的 prompt, 正经做 retrive 可以使用 向量数据库 和 文本相似度匹配
     data_time=datetime.datetime.now().strftime("%Y.%m.%d %H:%M:%S")
-    import datetime
+
     # 用来模拟知识库检索的 prompt, 正经做 retrive 可以使用 向量数据库 和 文本相似度匹配
-    data_time = datetime.datetime.now().strftime("%Y.%m.%d %H:%M:%S")
-    context = f"""
-        现在有一些历史对话，当前系统时间{data_time},你的任务是根据用户最后问题生成对应的SQL，其中数据库字段order_time为订单时间，shop_name为店铺名称，shop_ID为店铺ID
-        回复的必须按格式回复：“sql：select sum(pay_money) from order_info where <>=<> and order_time >= <>  and order_time <= <> ”。
-        举例：
-        问题：我想查询店铺123456789的销量近三个月的销量信息？
-        sql：select sum(pay_money) from order_info where shop_ID='123456789' and order_time >= DATE_SUB(NOW(), INTERVAL 3 MONTH) 
-        问题：查询深圳前海店铺ID12456789销量近15天的销量信息
-        sql：select sum(pay_money) from order_info where shop_ID='12456789' and order_time >= DATE_SUB(NOW(), INTERVAL 15 Day)  
-        问题：我想查询深圳前海店铺销量近15天的销量信息？
-        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= DATE_SUB(NOW(), INTERVAL 15 DAY) 
-        问题：我想查询深圳前海店铺今年七月份的销量信息？
-        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= '2023-07-01'  and order_time <= '2023-07-31'
-        问题：我想查询深圳前海店铺今年七月份初到今年九月底的销量信息？
-        sql：select sum(pay_money) from order_info where shop_name='深圳前海店铺' and order_time >= 2023-07-01'  and order_time <= '2023-10-01'
+
+    context = """
+        你的任务是根据用户与AI历史对话沟通记录，完成接口参数接口的字段值内容的提取，
+        接口需要参数说明：        
+            参数名|类型 |说明
+            begin_date|string|开始时间
+            end_date|string|结束时间
+            store_name|string|店铺名称
+            store_id|string|店铺ID
+        接口字段名字需要严格按照接口说明提供的, 并且必须严格按格式回复,尽量使用中文回复,格式为:("begin_date":<>,"end_date":<>,"store_name":<>,"store_id":<>),
+        
+        以下是根据历史沟通记录所举例，请按照举例完成你的任务：
+
+            问题：我想查询深圳前海店铺2023年六月到八月的的销量？
+            你的回答：("begin_date":"2023-06-01","end_date":"2023-08-31","store_name":"深圳前海店铺","store_id":"None")
+
+            问题：我想查询深圳前海店铺2023年六月十五号到八月20号的的销量？
+            你的回答：("begin_date":"2023-06-15","end_date":"2023-08-20","store_name":"深圳前海店铺","store_id":"None")
+
+            问题：我想查询店铺id:124567893近2022七月的的销量？
+            你的回答：("begin_date":"2022-07-01","end_date":"2022-07-31","store_name":"None","store_id":"124567893")
+            
+            问题：我想查询店铺id:124567893近2022七月一号的的销量？
+            你的回答：("begin_date":"2022-07-01","end_date":"None","store_name":"None","store_id":"124567893")
+
+            问题：我要查询深圳福田下沙店铺的销量
+            你的回答：("begin_date":"None","end_date":"None","store_name":"深圳福田下沙店铺","store_id":"")
+            
+            问题：我想查询深圳福田下沙店铺在2022年8月1号当天的销量？
+            你的回答：("begin_date":"2022-08-01","end_date":"None","store_name":"深圳福田下沙店铺","store_id":"None")
+
+            问题：、、、Human: 我想查询深圳前海在2023年9月的销量\nAI: 检测到你说的店铺存在两家店铺（’深圳前海二期店铺’，‘深圳前海一期店铺’），请问你要查询的是哪家店铺呢？\nHuman: 二期（深圳前海二期店铺ID:123456789,深圳前海一期店铺id4567898，请抽取对应其中一家店铺ID）、、、
+            你的回答：("begin_date":"2023-09-01","end_date":"2023-09-30","store_name":"深圳前海二期店铺","store_id":"123456789")
+
+            问题：、、、Human: 我想查询深圳前海在2023年9月的销量\nAI: 检测到你说的店铺存在两家店铺（’深圳前海二期店铺’，‘深圳前海一期店铺’），请问你要查询的是哪家店铺呢？\nHuman: 三期（深圳前海二期店铺ID:123456789,深圳前海一期店铺id4567898，请抽取对应其中一家店铺ID）、、、
+            你的回答：("begin_date":"2023-09-01","end_date":"2023-09-30","store_name":"None","store_id":"None")
+
+            问题：我想查询店铺ID124567893近2023年六月到八月的的销量？
+            你的回答：{"begin_date":"2023-06-01","end_date":"2023-08-31","store_name":"None","store_id":"124567893"}
         """
     # print(context)
     qa_template = """
-
-        请根据下面带***分隔符模板的文本，并根据下面带```分隔符文本对话来生成提取对应的SQL。
-        如果对话中没有相关店铺信息内容可以回答问题，请直接回复：“sql：<None>”
-        ***{text}***
-        对话：```{query}```
+        {text}
+        用户与AI历史对话：```{query}```
+        你的回答：
         """
     prompt = PromptTemplate.from_template(qa_template)
     llm_chain: LLMChain = None
 
     # 生成基于知识的回答
     def _call_func(self, query) -> str:
+        global  insert
         # print(f"已知店铺信息查询query******{query}*****")
         self.get_llm_chain()
+        query=query+insert
+        history=merge_history(query)
         context=self.context
-        resp = self.llm_chain.predict(text=context, query=query)
-        print(f"已知店铺查询******{resp}*****")
-        return "销量为5000万单"
+        resp = self.llm_chain.predict(text=context,query=history)
+        print("resp:\t"+resp)
+        resp = resp.replace("({", "{").replace("})", "}").replace("(","{").replace(")","}")
+        import json
+        resp_prompt = "不好意思，我不是很明白你的意思，猜你想查询店铺的销量信息，你可以这样问：\n" + "我想查询店铺ID12456789在2023年8月1号到九月30号的销量" + \
+               "\n or \n" + "我想查询深圳前海店铺在2023年8月1号的销量"
+        try:
+            resp=json.loads(resp)
+
+            message_error=[]
+
+            if resp["begin_date"]=="None" or resp["begin_date"]== 'null' or resp["begin_date"] is None or resp["begin_date"]=='':
+                message_error.append("查询起始时间为空")
+
+            if (resp["store_name"]=="None" or resp["store_name"]=='' or resp["store_name"]=='null' or resp["store_name"] is None ) and (resp["store_id"]=="None" or resp["store_id"]  is None or resp["store_id"]=="null" or resp["store_id"]=='') :
+                message_error.append("完整店铺名称或店铺ID")
+
+            if resp["store_name"]  not in [None ,"null",'','None']  and resp["store_id"] in [None ,"null",'','None'] and "前海" in resp["store_name"] :
+                insert = "（深圳前海二期店铺ID:123456789,深圳前海一期店铺ID:987654321，请抽取对应其中一家店铺ID）"
+                print("insert\t"+insert)
+                return "检测到你说的店铺存在两家店铺（’深圳前海二期店铺’，‘深圳前海一期店铺’），请问你要查询的是哪家店铺呢？"
+
+            if len(message_error):
+                resp="你需要告诉我完整查询信息，检测到下面信息不完整，请补全\n"+"\n".join(message_error)
+
+        except Exception  as e :
+            print(str(resp)+str(e))
+            return resp_prompt
+
+        # store_info="店铺ID:"+resp["store_id"] if resp["store_id"] not in (None,"null","None") else "店铺名称:"+resp["store_name"]
+        # date_info="时间为"+resp["begin_date"]
+        # date_info+="" if resp["begin_date"] in (None,"null","None") else "到"+resp["begin_date"]
+        # store_info +=date_info+"的销量信息"
+        # rep="请确定你是否查询一下信息，"+store_info+""
+
+        # print(f"已知店铺查询******{resp}*****")
+        return str(resp)
 
     def get_llm_chain(self):
         if not self.llm_chain:
@@ -337,7 +409,7 @@ class Actor_knowledge_Tool(functional_Tool):
 
 from langchain.agents import AgentExecutor
 from MyOpenAI import myOpenAi
-llm = myOpenAi(temperature=0.7)
+llm = myOpenAi(temperature=0.9)
 
 # order=Order_select_Tool(llm=llm)
 # res=order._run("查询订单123456")
@@ -414,17 +486,20 @@ agent_exec = AgentExecutor.from_agent_and_tools(agent=agent, memory=memory, tool
 # print(res)
 
 
-# res=agent_exec.run("我想咨询订单4567896")
-# print("33333333333333333")
-# print(res)
-# res=agent_exec.run("你好")
-# print("44444444444444444444444444")
-
+# response=agent_exec.run("我想查询深圳前海店铺在2023年9月的销量")
+# print(" AI回复:\t"+response)
+# response=agent_exec.run("深圳前海一期店铺")
+# print(" AI回复:\t"+response)
+# response=agent_exec.run("2期店铺")
+# print(" AI回复:\t"+response)
+# response=agent_exec.run("3期店铺")
+# print(" AI回复:\t"+response)
+#
 while True:
     try:
         user_input = input("请输入您的问题：")
         response = agent_exec.run(user_input)
-        print("****:\t"+response)
+        print(" AI回复:\t"+response)
         # print("history:\t"+str(memory.load_memory_variables({})["chat_history"]))
     except KeyboardInterrupt:
         break
