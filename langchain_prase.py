@@ -18,9 +18,10 @@ prompt = PromptTemplate(
 
 model = OpenAI(temperature=0.9)
 _input = prompt.format_prompt(question="what's the capital of france?")
+print(_input)
 output = model.predict(_input.to_string())
 res=output_parser.parse(output)
-print(res)
+# print(res)
 
 chat_model = ChatOpenAI(temperature=0)
 

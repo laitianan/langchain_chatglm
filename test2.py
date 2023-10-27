@@ -43,8 +43,11 @@ prompt = PromptTemplate(
 
 promptValue = prompt.format(user_input="6月26日，广汽集团在科技日上首次公开展示飞行汽车项目，飞行汽车GOVE完成全球首飞。广汽研究院院长吴坚表示，GOVE可以垂直起降，并搭载双备份多旋翼飞行系统，保障飞行安全。")
 # print(promptValue)
-llm_output = llm(promptValue)
+llm_output = llm.predict(promptValue)
 print(llm_output)
 
 # 使用解析器进行解析生成的内容
 print(output_parser.parse(llm_output))
+
+
+

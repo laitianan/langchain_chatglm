@@ -1,17 +1,16 @@
 import openai
+
+# print(text)
 if __name__ == "__main__":
     openai.api_base = "http://192.168.0.11:8081/v1"
     openai.api_key = "none"
     for chunk in openai.ChatCompletion.create(
         model="internlm-chat-7b",
         messages=[
-            {"role": "system", "content": "你当前的角色是幸福西饼AI客服，主要负责对用户问答，，问答的方向为4方面，1.财务问答 2.订单详情咨询 3.销量统计，4.退货帮助 ，如果不在你职责范围内的请回答，我帮助不了你"
-                                          +"并明确告诉他你可以回答四个方面"},
-            {"role": "user", "content": "你好"},
-            {"role": "assistant", "content": "您好，我是幸福西饼的AI客服，有什么我可以帮助您的吗？"},
-            {"role": "user", "content": "我想查询下员工问题"},
+            {"role": "user", "content": "什么是AI"},
         ],
-        temperature=0.9,
+        temperature=0.8,
+        max_tokens=200,
         stream=True
     ):
 
@@ -34,3 +33,6 @@ curl -X POST \
 
 """
 
+# import requests
+# r1 = requests.post("http://127.0.0.1:8081/v1/chat/completions",header, data=post_json)
+# print(r1.content.decode("utf8"))

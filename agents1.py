@@ -503,3 +503,5 @@ while True:
         # print("history:\t"+str(memory.load_memory_variables({})["chat_history"]))
     except KeyboardInterrupt:
         break
+
+

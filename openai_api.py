@@ -62,9 +62,9 @@ class DeltaMessage(BaseModel):
 class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
-    temperature: Optional[float] = None
+    temperature: Optional[float] = 0.7
     top_p: Optional[float] = None
-    max_length: Optional[int] = None
+    max_tokens: Optional[int] = 500
     stream: Optional[bool] = False
 
 class EmbeddingsRequest(BaseModel):
@@ -118,7 +118,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
         raise HTTPException(status_code=400, detail="Invalid request")
     query = request.messages[-1].content
     logging.info(str(request.messages))
-    print("/v1/chat/completions:\t"+str(request.messages))
+    print("/v1/chat/completions 参数接受值:\t"+str(request.messages))
     prev_messages = request.messages[:-1]
     if len(prev_messages) > 0 and prev_messages[0].role == "system":
         query = prev_messages.pop(0).content + query
@@ -133,7 +133,9 @@ async def create_chat_completion(request: ChatCompletionRequest):
         generate = predict(query, history, request)
         return EventSourceResponse(generate, media_type="text/event-stream")
 
-    response, _ = model.chat(tokenizer, query, history=history,temperature=request.temperature,max_length=request.max_length)
+    # response, _ = model.chat(tokenizer, query, history=history)
+    response, _ = model.chat(tokenizer, query, history=history, temperature=request.temperature,max_new_tokens=request.max_tokens)
+
     logging.info("info后台返回值："+str(response))
     print("print后台返回值："+str(response))
     choice_data = ChatCompletionResponseChoice(
@@ -158,8 +160,9 @@ async def predict(query: str, history: List[List[str]], request: ChatCompletionR
     yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
 
     current_length = 0
-
-    for new_response, _ in model.stream_chat(tokenizer, query, history=history,temperature=request.temperature,max_length=request.max_length):
+    #,repetition_penalty=1.1,do_sample=True,top_p=0.8
+    for new_response, _ in model.stream_chat(tokenizer, query, history=history,temperature=request.temperature,max_new_tokens=request.max_tokens):
+    # for new_response, _ in model.stream_chat(tokenizer, query, history=history):
         if len(new_response) == current_length:
             continue
 
@@ -242,19 +245,28 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = "text2
     ).dict(exclude_none=True)
 
 
-if __name__ == "__main__":
-    path="./chatglm2-6b"
-    path="/data/laitianan/internlm-chat-20b-4bit"
+def qwen():
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    print("qwen loading")
+    path="/data/laitianan/qwen-14b-4bit"
+    # Note: The default behavior now has injection attack prevention off.
+    tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        path,
+        device_map="auto",
+        trust_remote_code=True
+    ).eval()
+
+    return tokenizer,model
+def internlm7b():
+    print("internlm loading")
     path="/data/laitianan/internlm-chat-7b"
     tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
     model = AutoModel.from_pretrained(path, trust_remote_code=True,torch_dtype=torch.float16).cuda()
-    # 多显卡支持，使用下面两行代替上面一行，将num_gpus改为你实际的显卡数量
-    # from utils import load_model_on_gpus
-    # model = load_model_on_gpus("THUDM/chatglm2-6b", num_gpus=2)
-    # model.eval()
-    # tokenizer2 = AutoTokenizer.from_pretrained("/data/laitianan/Langchain-Chatchat-master/text2vec-large-chinese",
-    #                                                trust_remote_code=True)
+    return tokenizer, model
+
+if __name__ == "__main__":
+    tokenizer,model=qwen()
     from text2vec import SentenceModel
     t2v_model = SentenceModel("/data/laitianan/Langchain-Chatchat-master/text2vec-large-chinese")
-
     uvicorn.run(app, host='0.0.0.0', port=8081, workers=1)
