@@ -32,7 +32,7 @@ class IntentAgent(BaseSingleActionAgent):
         tool_names = [tool.name for tool in self.tools]
         summary=[]
         for i,tool in enumerate(self.tools):
-            summary.append(f"{i}.{tool.name}:{tool.description}")
+            summary.append(f"{i+1}.{tool.name}:{tool.description}")
         summary="\n".join(summary)
         i=0
         while True:

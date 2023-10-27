@@ -6,7 +6,9 @@ InitInterfaceRequest,
 Interface
 )
 funtion_context = """
+
 你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
+系统当前时间{current_time}，部分时间需要通过当前时间计算，
 输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 {format_instructions}
 
@@ -18,12 +20,12 @@ funtion_context = """
 你的回答:
 """
 def create_fun_prompt(param:Interface)->PromptTemplate:
-    response_schemas = [ResponseSchema(name=p.name,type=p.type, description=f"{p.title}，抽取不到时使用None代替") for p in param.inputParams]
+    response_schemas = [ResponseSchema(name=p.name,type=p.type, description=f'{p.title}，抽取不到时使用"None"代替') for p in param.inputParams]
     output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
     # 获取响应格式化的指令
     format_instructions = output_parser.get_format_instructions(only_json=True)
     prompt = PromptTemplate(
-        input_variables=["user_input"],
+        input_variables=["user_input","current_time"],
         partial_variables={"format_instructions": format_instructions},
         template=funtion_context
     )
@@ -31,7 +33,7 @@ def create_fun_prompt(param:Interface)->PromptTemplate:
 
 def init_all_fun_prompt(parmas:InitInterfaceRequest):
     prompt_dict=dict()
-    for param in parmas:
+    for param in parmas.params:
         if param.usableFlag:
             id,prompt=create_fun_prompt(param)
             prompt_dict[id]=prompt
@@ -85,26 +87,30 @@ if __name__ == '__main__':
     #     template=intent_template
     # )
 
-    input=INTENT_FORMAT_INSTRUCTIONS.format(user_input="物理应该怎么学习",intention_summary=intention_summary,intents=intents)
-    print(input)
-    print("-------------------------------------------------------------------------------------")
-    res=llm.predict(input)
-    print(res)
+    # input=INTENT_FORMAT_INSTRUCTIONS.format(user_input="物理应该怎么学习",intention_summary=intention_summary,intents=intents)
+    # print(input)
+    # print("-------------------------------------------------------------------------------------")
+    # res=llm.predict(input)
+    # print(res)
 
     tmp="""
-    你的任务是根据历史对话沟通记录，找出human最终表达特定的字段信息，以结构化数据格式返回，
-    输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
-    
-    ```json
-    {
-        "order_id": string  // 订单ID，缺失时使用None代替
-        "begin_date": string  // 订单开始时间，缺失时使用None代替
-        "end_date": string  // 订单结束时间，缺失时使用None代替
-    }
-    ```
-    历史对话沟通记录：
-    human:帮我查下2023年09月下的订单45678995所有销售量
-    你的回答:"""
+    你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
+输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 
-    # res=llm.predict(tmp)
-    # print(res)
+```json
+{
+	"order_id": string  // 订单ID，抽取不到时使用None代替
+	"datetime": string  // 订单时间，抽取不到时使用None代替
+}
+```
+
+***
+历史对话沟通记录：
+    user:我想查询订单456的详情
+***
+
+你的回答:
+            """
+
+    res=llm.predict(tmp)
+    print(res)

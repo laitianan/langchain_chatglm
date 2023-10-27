@@ -5,6 +5,8 @@ from langchain.agents import BaseSingleActionAgent
 from langchain import LLMChain, PromptTemplate
 from utils import  parse_json_markdown
 import json
+from typing import Any, Dict, List, Literal, Optional, Union
+import datetime
 class Model_Tool(functional_Tool):
     llm: BaseLanguageModel
 
@@ -13,14 +15,17 @@ class Model_Tool(functional_Tool):
     description:str
     id:str
     prompt_dict:dict
-
+    prompt:Optional[Any]
     def _call_func(self, query):
-        self.prompt = self.prompt_dict[self.id]
+        id=self.id
+        self.prompt = self.prompt_dict[id]
         self.get_llm_chain()
         i=0
+        current_time = datetime.datetime.now()
+        current_time=str(current_time)[:19]
         while True:
             i+=1
-            resp = self.llm_chain.predict(user_input=query)
+            resp = self.llm_chain.predict(user_input=query,current_time=current_time)
             try:
                 resp=parse_json_markdown(resp)
                 break
@@ -46,7 +51,7 @@ class Unknown_Intention_Model_Tool(functional_Tool):
 
     def _call_func(self, query):
         resp = self.llm.predict(query)
-        return None,resp
+        return "",resp
 
     def get_llm_chain(self):
         pass
