@@ -5,7 +5,7 @@ from api_protocol import  (
 InitInterfaceRequest,
 Interface
 )
-funtion_context = """
+FUNTION_FORMAT_INSTRUCTIONS = """
 
 你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
 系统当前时间{current_time}，部分时间需要通过当前时间计算，
@@ -27,7 +27,7 @@ def create_fun_prompt(param:Interface)->PromptTemplate:
     prompt = PromptTemplate(
         input_variables=["user_input","current_time"],
         partial_variables={"format_instructions": format_instructions},
-        template=funtion_context
+        template=FUNTION_FORMAT_INSTRUCTIONS
     )
     return param.id,prompt
 
@@ -106,7 +106,7 @@ if __name__ == '__main__':
 
 ***
 历史对话沟通记录：
-    user:我想查询订单456的详情
+    user:我想查询半年前订单456的总销量详情详情
 ***
 
 你的回答:

@@ -14,7 +14,22 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Literal, Optional, Union
 from transformers import AutoTokenizer, AutoModel
 from sse_starlette.sse import ServerSentEvent, EventSourceResponse
-import  logging
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+fh = logging.FileHandler(filename='./server.log')
+formatter = logging.Formatter(
+    "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
+)
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+logger.addHandler(ch)  # 将日志输出至屏幕
+logger.addHandler(fh)  # 将日志输出至文件
+
+from fastapi import  Request
+from fastapi.responses import JSONResponse
+from functools import wraps
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): # collects GPU memory
@@ -33,6 +48,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+class UnicornException(Exception):
+    def __init__(self, name: str):
+        self.name = name
+
+@app.exception_handler(UnicornException)
+async def unicorn_exception_handler(request: Request, exc: UnicornException):
+
+    return JSONResponse(
+        status_code=408,
+        content={"status": f"Oops! {exc.name} "},
+    )
+
+
+def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException 的装饰器函数，它接受一个参数 func这个 func 就是即将要被修饰的函数
+    @wraps(func)
+    async def wrapper(*args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
+        try:
+            logging.info(f"接口：{func.__name__}，前端前期参数为：{args} {kwargs}")
+            res = await func(*args, **kwargs)
+            logging.info(f"返回值：{res}")
+        except  Exception as e:
+            info=str(e)
+            raise  UnicornException(name=info)
+        return res
+
+    return wrapper
+
 
 class ModelCard(BaseModel):
     id: str
@@ -105,6 +147,7 @@ class ChatCompletionResponse(BaseModel):
 
 
 @app.get("/v1/models", response_model=ModelList)
+@raise_UnicornException
 async def list_models():
     global model_args
     model_card = ModelCard(id="gpt-3.5-turbo")
@@ -112,13 +155,14 @@ async def list_models():
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+@raise_UnicornException
 async def create_chat_completion(request: ChatCompletionRequest):
     global model, tokenizer
     if request.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Invalid request")
     query = request.messages[-1].content
-    logging.info(str(request.messages))
-    print("/v1/chat/completions 参数接受值:\t"+str(request.messages))
+    # logging.info(str(request.messages))
+    # print("/v1/chat/completions 参数接受值:\t"+str(request.messages))
     prev_messages = request.messages[:-1]
     if len(prev_messages) > 0 and prev_messages[0].role == "system":
         query = prev_messages.pop(0).content + query
@@ -136,8 +180,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
     # response, _ = model.chat(tokenizer, query, history=history)
     response, _ = model.chat(tokenizer, query, history=history, temperature=request.temperature,max_new_tokens=request.max_tokens)
 
-    logging.info("info后台返回值："+str(response))
-    print("print后台返回值："+str(response))
+    # logging.info("info后台返回值："+str(response))
+    # print("print后台返回值："+str(response))
     choice_data = ChatCompletionResponseChoice(
         index=0,
         message=ChatMessage(role="assistant", content=response),
@@ -149,8 +193,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
 
 async def predict(query: str, history: List[List[str]], request: ChatCompletionRequest):
     global model, tokenizer
-    logging.info(str(query))
-    print(str(query))
+    # logging.info(str(query))
+    # print(str(query))
     choice_data = ChatCompletionResponseStreamChoice(
         index=0,
         delta=DeltaMessage(role="assistant"),
@@ -200,6 +244,7 @@ def process_input(model_name, inp):
 
 # @app.post("/v1/embeddings", response_model=EmbeddingsResponse)
 @app.post("/v1/embeddings", response_model_exclude_none=True)
+@raise_UnicornException
 async def create_embeddings(request: EmbeddingsRequest, model_name: str = "text2vec-large-chinese"):
     global  t2v_model
     """Creates embeddings for the text"""

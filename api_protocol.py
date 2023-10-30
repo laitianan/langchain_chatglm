@@ -50,11 +50,11 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
-    message:Union[str, List[ChatMessage]]
+    message:Union[List[ChatMessage],str]
 
 class FunCompletionRequest(BaseModel):
     funtion_id:Optional[str]
-    message:Union[str, List[ChatMessage]]
+    message:Union[List[ChatMessage],str]
 
 class ChatCompletionResponse(BaseModel):
     status: int
@@ -65,4 +65,8 @@ class ChatCompletionResponse(BaseModel):
 class ChatResponse(BaseModel):
     status: int
     role: Optional[str]="assistant"
+    message: str
+
+class DeleteResponse(BaseModel):
+    status: int
     message: str

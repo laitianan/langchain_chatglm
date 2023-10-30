@@ -11,6 +11,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 # api_base = "http://61.141.232.106:8084/v1"#公网
 api_base = "http://192.168.0.11:8081/v1"#内网
+# api_base = "http://127.0.0.1:8081/v1"#内网
 from api_protocol import ChatMessage
 
 class  myOpenAi(ChatOpenAI):
@@ -57,14 +58,6 @@ class myOpenAIEmbeddings(OpenAIEmbeddings):
 
 
 if __name__ == '__main__':
-    # llm = myOpenAi(temperature=0.7,max_tokens=5000)
-    # f = open(r"D:\source_code\langchain_chatglm\data\text.txt", 'r', encoding='utf-8')
-    # text = f.read()
-    # print()
-    # res = llm.predict(text)
-    # print(res)
-
-    messages=[ChatMessage(role="user",content="化学应该怎么学习"),ChatMessage(role="assistant",content="你好！很高兴为你提供帮助。有什么我可以帮你的吗？"),ChatMessage(role="user",content="物理怎么学习")]
-    llm=openai_model()
-    # print(llm.predict("化学应该怎么学习"))
-    print(llm.predict(messages))
+    llm = myOpenAi(temperature=0.7,max_tokens=2000)
+    res = llm.predict("你好")
+    print(res)
