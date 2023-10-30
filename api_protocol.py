@@ -42,7 +42,7 @@ class InitInterfaceRequest(BaseModel):
 class InitInterfaceResponse(BaseModel):
     status:int
     message:Optional[str]
-    all_function:Optional[InitInterfaceRequest]
+    # all_function:Optional[InitInterfaceRequest]
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
@@ -53,12 +53,12 @@ class ChatCompletionRequest(BaseModel):
     message:Union[List[ChatMessage],str]
 
 class FunCompletionRequest(BaseModel):
-    funtion_id:Optional[str]
+    funtion_id:Optional[str]= ""
     message:Union[List[ChatMessage],str]
 
 class ChatCompletionResponse(BaseModel):
     status: int
-    funtion_id:Optional[str]
+    funtion_id:Optional[str]=""
     role: Optional[str]="assistant"
     message: str
 

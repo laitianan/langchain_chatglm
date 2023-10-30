@@ -6,7 +6,7 @@ from langchain.base_language import BaseLanguageModel
 from langchain.memory import ConversationBufferMemory
 from langchain.agents.conversational_chat.base import ConversationalChatAgent
 from utils import  parse_json_markdown
-
+import  logging
 from typing import List, Tuple, Any, Union, Optional
 from langchain.schema import AgentAction, AgentFinish
 from langchain.agents import BaseSingleActionAgent
@@ -41,7 +41,8 @@ class IntentAgent(BaseSingleActionAgent):
             try:
                 resp=parse_json_markdown(resp)
                 break
-            except :
+            except Exception () as e :
+                logging.info(f"choose_tools:{e},{resp}")
                 pass
             ###三次试错找不到意图强制返回
             if i>=3:

@@ -53,6 +53,18 @@ app.add_middleware(
 from fastapi import  Request
 from fastapi.responses import JSONResponse
 
+
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        # you probably want some kind of logging here
+
+        return JSONResponse(content={"status": 402,"message":f"{e}"}, status_code=500)
+
+
+app.middleware('http')(catch_exceptions_middleware)
+
 class UnicornException(Exception):
     def __init__(self, name: str):
         self.name = name
@@ -62,7 +74,7 @@ async def unicorn_exception_handler(request: Request, exc: UnicornException):
 
     return JSONResponse(
         status_code=408,
-        content={"status": f"Oops! {exc.name} "},
+        content={"status": 402,"message":f"{exc.name}"},
     )
 
 
@@ -82,7 +94,6 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
 
 
 @app.post("/chat/completions", response_model=ChatResponse)
-@raise_UnicornException
 async def chat(request: ChatCompletionRequest):
 
     llm=openai_model()
@@ -91,7 +102,6 @@ async def chat(request: ChatCompletionRequest):
 
 
 @app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
-@raise_UnicornException
 async def del_temp():
     path = os.path.join(saveinterfacepath, "interface_template.pkl")
     if os.path.exists(path):
@@ -100,10 +110,8 @@ async def del_temp():
     return DeleteResponse(status=200,message="删除所有模板成功")
 
 @app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
-@raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
     global  initparam
-    print(initparam)
     if initparam  :
         interface_fun = {param.id:param for param in initparam.params}
         for param in request.params:
@@ -115,7 +123,7 @@ async def init_funtion_template(request: InitInterfaceRequest):
         initparam=request
     save_interface_template(initparam, path=saveinterfacepath)
     init_run()
-    res=InitInterfaceResponse(status=200,message="添加模板成功", all_function=initparam)
+    res=InitInterfaceResponse(status=200,message="添加模板成功")
     return res
 
 
@@ -133,25 +141,31 @@ def merge_message(message):
 
 
 @app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
-@raise_UnicornException
-async def chat_funtion_intention(request: ChatCompletionRequest):
-    global  agent_exec
+async def chat_funtion_intention(request: FunCompletionRequest):
+    global  agent_exec,toos_dict
+    if request.funtion_id is None or request.funtion_id=='':
+        query=merge_message(request.message)
+        fun_id,message=agent_exec.run(query)
+        fun_id=fun_id or ""
+        return ChatCompletionResponse(status=200,funtion_id=fun_id,message=message)
+    else:
+        tool = toos_dict[request.funtion_id]
+        query = merge_message(request.message)
+        _, message = tool._run(query)
+        return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
 
-    query=merge_message(request.message)
-    fun_id,message=agent_exec.run(query)
-    return ChatCompletionResponse(status=200,funtion_id=fun_id,message=message)
 
 
 
-@app.post("/chat_funtion/completions", response_model=ChatCompletionResponse)
-@raise_UnicornException
-async def chat_funtion(request: FunCompletionRequest):
-    global  toos_dict
-
-    tool=toos_dict[request.funtion_id]
-    query=merge_message(request.message)
-    _,message=tool._run(query)
-    return ChatCompletionResponse(status=200,funtion_id=request.funtion_id,message=message)
+# @app.post("/chat_funtion/completions", response_model=ChatCompletionResponse)
+# @raise_UnicornException
+# async def chat_funtion(request: FunCompletionRequest):
+#     global  toos_dict
+#
+#     tool=toos_dict[request.funtion_id]
+#     query=merge_message(request.message)
+#     _,message=tool._run(query)
+#     return ChatCompletionResponse(status=200,funtion_id=request.funtion_id,message=message)
 
 
 def init_run():

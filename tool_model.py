@@ -33,7 +33,7 @@ class Model_Tool(functional_Tool):
                 pass
             ###三次试错找不到意图强制返回
             if i>=3:
-                return self.id,None
+                return self.id,""
 
         return self.id,json.dumps(resp)
 
