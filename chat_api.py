@@ -18,7 +18,7 @@ from tool_model import Model_Tool, Unknown_Intention_Model_Tool
 from MyOpenAI import myOpenAi,openai_model
 from prompt_helper import init_all_fun_prompt
 from utils import load_interface_template,save_interface_template
-
+import time
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -41,7 +41,9 @@ ChatCompletionRequest,
 ChatCompletionResponse,
 FunCompletionRequest,
 ChatResponse,
-DeleteResponse
+DeleteResponse,
+TemplateResponse
+
 )
 app.add_middleware(
     CORSMiddleware,
@@ -53,17 +55,6 @@ app.add_middleware(
 from fastapi import  Request
 from fastapi.responses import JSONResponse
 
-
-async def catch_exceptions_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
-    except Exception as e:
-        # you probably want some kind of logging here
-
-        return JSONResponse(content={"status": 402,"message":f"{e}"}, status_code=500)
-
-
-app.middleware('http')(catch_exceptions_middleware)
 
 class UnicornException(Exception):
     def __init__(self, name: str):
@@ -82,11 +73,15 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
     @wraps(func)
     async def wrapper(*args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
         try:
-            logging.info(f"接口：{func.__name__}，前端前期参数为：{args} {kwargs}")
+            start_time = time.time()  # 程序开始时间
+            logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
-            logging.info(f"返回值：{res}")
+            end_time = time.time()  # 程序结束时间
+            run_time = end_time - start_time  # 程序的运行时间，单位为秒
+            logging.info(f"接口：{func.__name__}，运行时间：{run_time}，返回值：{res}")
         except  Exception as e:
             info=str(e)
+            logging.info(f"接口：{func.__name__}，接口异常错误提示：{info}")
             raise  UnicornException(name=info)
         return res
 
@@ -94,6 +89,7 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
 
 
 @app.post("/chat/completions", response_model=ChatResponse)
+@raise_UnicornException
 async def chat(request: ChatCompletionRequest):
 
     llm=openai_model()
@@ -102,14 +98,16 @@ async def chat(request: ChatCompletionRequest):
 
 
 @app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
+@raise_UnicornException
 async def del_temp():
     path = os.path.join(saveinterfacepath, "interface_template.pkl")
     if os.path.exists(path):
         os.remove(path)
-        
+    init_run()
     return DeleteResponse(status=200,message="删除所有模板成功")
 
 @app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
+@raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
     global  initparam
     if initparam  :
@@ -127,6 +125,14 @@ async def init_funtion_template(request: InitInterfaceRequest):
     return res
 
 
+@app.post("/get_all_template/completions", response_model=TemplateResponse)
+@raise_UnicornException
+async  def get_all_template():
+    initparam = load_interface_template(saveinterfacepath)
+    return TemplateResponse(status=200,message="获取模板成功",template=initparam)
+
+
+
 def merge_message(message):
 
     if isinstance(message,str):
@@ -141,6 +147,7 @@ def merge_message(message):
 
 
 @app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
+@raise_UnicornException
 async def chat_funtion_intention(request: FunCompletionRequest):
     global  agent_exec,toos_dict
     if request.funtion_id is None or request.funtion_id=='':
@@ -193,7 +200,7 @@ if __name__ == "__main__":
 
     agent_exec,toos_dict,llm,initparam=None,None,None,None
     init_run()
-    uvicorn.run(app, host='0.0.0.0', port=8084, workers=1)
+    uvicorn.run(app, host='0.0.0.0', port=8084, workers=3)
 
 
 

@@ -18,7 +18,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-fh = logging.FileHandler(filename='./server.log')
+fh = logging.FileHandler(filename='./openai_server.log')
 formatter = logging.Formatter(
     "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
 )
@@ -65,7 +65,7 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
     @wraps(func)
     async def wrapper(*args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
         try:
-            logging.info(f"接口：{func.__name__}，前端前期参数为：{args} {kwargs}")
+            logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
             logging.info(f"返回值：{res}")
         except  Exception as e:

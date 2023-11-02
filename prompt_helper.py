@@ -8,7 +8,7 @@ Interface
 FUNTION_FORMAT_INSTRUCTIONS = """
 
 你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
-系统当前时间{current_time}，部分时间需要通过当前时间计算，
+系统当前时间{current_time}，部分时间需要结合聊天记录以及前时间推理，
 输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 {format_instructions}
 
@@ -51,10 +51,10 @@ INTENT_FORMAT_INSTRUCTIONS: str = """
 }}
 ```
 备注意图详情描述：
-    {intention_summary}
+{intention_summary}
 ***
 历史对话沟通记录：
-    {user_input}
+{user_input}
 ***
 你的回答：
 """

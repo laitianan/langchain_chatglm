@@ -32,23 +32,16 @@ class IntentAgent(BaseSingleActionAgent):
         tool_names = [tool.name for tool in self.tools]
         summary=[]
         for i,tool in enumerate(self.tools):
-            summary.append(f"{i+1}.{tool.name}:{tool.description}")
+            summary.append(f"---.{tool.name}:{tool.description}")
         summary="\n".join(summary)
-        i=0
-        while True:
-            i+=1
-            resp = self.llm_chain.predict(intents=tool_names, intention_summary=summary, user_input=query)
-            try:
-                resp=parse_json_markdown(resp)
+        res=[]
+        resp = self.llm_chain.predict(intents=tool_names, intention_summary=summary, user_input=query)
+        for name in tool_names:
+            if name in resp:
+                res.append(name)
                 break
-            except Exception () as e :
-                logging.info(f"choose_tools:{e},{resp}")
-                pass
-            ###三次试错找不到意图强制返回
-            if i>=3:
-                return [self.default_intent_name]
-                break
-        return [resp["intention_name"]]
+        res.append(self.default_intent_name)
+        return res
 
     @property
     def input_keys(self):
@@ -58,7 +51,8 @@ class IntentAgent(BaseSingleActionAgent):
     def plan(
             self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any
     ) -> Union[AgentAction, AgentFinish]:
-        tool_name = self.choose_tools(kwargs["input"])[0]
+        tools=self.choose_tools(kwargs["input"])
+        tool_name = tools[0]
         return AgentAction(tool=tool_name, tool_input=kwargs["input"], log="")
 
     async def aplan(

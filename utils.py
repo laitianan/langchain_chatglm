@@ -2,7 +2,8 @@ import os
 import pickle
 import json
 import re
-
+import logging
+from ast import literal_eval
 def load_interface_template(path):
     path=os.path.join(path,"interface_template.pkl")
     if os.path.exists(path):
@@ -16,6 +17,9 @@ def save_interface_template(data,path):
     path=os.path.join(path,"interface_template.pkl")
     with open(path, 'wb') as f:
         pickle.dump(data, f)
+
+
+
 
 
 def parse_json_markdown(json_string: str) -> dict:
@@ -40,9 +44,8 @@ def parse_json_markdown(json_string: str) -> dict:
 
     # Strip whitespace and newlines from the start and end
     json_str = json_str.strip()
-
-    # Parse the JSON string into a Python dictionary
-    parsed = json.loads(json_str)
-
-    return parsed
+    # json_str= literal_eval(json_str)
+    # # Parse the JSON string into a Python dictionary
+    # parsed = json.loads(json_str)
+    return literal_eval(json_str)
 

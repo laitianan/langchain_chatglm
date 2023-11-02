@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Union, Optional
 from pydantic import BaseModel, Field
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
@@ -43,6 +43,11 @@ class InitInterfaceResponse(BaseModel):
     status:int
     message:Optional[str]
     # all_function:Optional[InitInterfaceRequest]
+
+class TemplateResponse(BaseModel):
+    status:int
+    message:Optional[str]
+    template:Optional[InitInterfaceRequest]
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]

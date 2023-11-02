@@ -7,6 +7,7 @@ from utils import  parse_json_markdown
 import json
 from typing import Any, Dict, List, Literal, Optional, Union
 import datetime
+import logging
 class Model_Tool(functional_Tool):
     llm: BaseLanguageModel
 
@@ -27,6 +28,8 @@ class Model_Tool(functional_Tool):
             i+=1
             resp = self.llm_chain.predict(user_input=query,current_time=current_time)
             try:
+                if resp.find('None\n')!=-1:
+                    resp = resp.replace('None\n', '"None"\n')
                 resp=parse_json_markdown(resp)
                 break
             except :
@@ -35,7 +38,7 @@ class Model_Tool(functional_Tool):
             if i>=3:
                 return self.id,""
 
-        return self.id,json.dumps(resp)
+        return self.id,json.dumps(resp,ensure_ascii=False)
 
     def get_llm_chain(self):
         if not self.llm_chain:
@@ -50,6 +53,10 @@ class Unknown_Intention_Model_Tool(functional_Tool):
     description:str="用户随便询问的内容,当其他意图不匹配时请选择该意图"
 
     def _call_func(self, query):
+        if query.count("user"):
+            query=f"system:当前你是幸福西饼AI客服助手，请你尽量使用中文回答用户的问题\n{query}"
+        else:
+            query = f"system:当前你是幸福西饼AI客服助手，请你尽量使用中文回答用户的问题\nuser:{query}"
         resp = self.llm.predict(query)
         return "",resp
 
