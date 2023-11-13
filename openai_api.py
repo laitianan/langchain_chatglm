@@ -48,6 +48,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 class UnicornException(Exception):
     def __init__(self, name: str):
         self.name = name
@@ -105,8 +106,9 @@ class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
     temperature: Optional[float] = 0.7
-    top_p: Optional[float] = None
-    max_tokens: Optional[int] = 500
+    top_p: Optional[float] = 0.7
+    max_tokens: Optional[int] = 2000
+    max_length: Optional[int] = 2000
     stream: Optional[bool] = False
 
 class EmbeddingsRequest(BaseModel):
@@ -161,7 +163,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
     if request.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Invalid request")
     query = request.messages[-1].content
-    # logging.info(str(request.messages))
+    logging.info(str(request))
     # print("/v1/chat/completions 参数接受值:\t"+str(request.messages))
     prev_messages = request.messages[:-1]
     if len(prev_messages) > 0 and prev_messages[0].role == "system":
@@ -172,13 +174,15 @@ async def create_chat_completion(request: ChatCompletionRequest):
         for i in range(0, len(prev_messages), 2):
             if prev_messages[i].role == "user" and prev_messages[i+1].role == "assistant":
                 history.append([prev_messages[i].content, prev_messages[i+1].content])
-
+    gen_kwargs = {"temperature": request.temperature, "max_new_tokens": request.max_tokens,
+                  "max_length": request.max_length, "top_p": request.top_p}
     if request.stream:
-        generate = predict(query, history, request)
+        generate = predict(query, history,request.model,request.model, gen_kwargs)
         return EventSourceResponse(generate, media_type="text/event-stream")
 
     # response, _ = model.chat(tokenizer, query, history=history)
-    response, _ = model.chat(tokenizer, query, history=history, temperature=request.temperature,max_new_tokens=request.max_tokens)
+
+    response, _ = model.chat(tokenizer, query, history=history, **gen_kwargs)
 
     # logging.info("info后台返回值："+str(response))
     # print("print后台返回值："+str(response))
@@ -191,7 +195,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
     return ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion")
 
 
-async def predict(query: str, history: List[List[str]], request: ChatCompletionRequest):
+async def predict(query: str, history: List[List[str]],modelname, gen_kwargs):
     global model, tokenizer
     # logging.info(str(query))
     # print(str(query))
@@ -200,13 +204,14 @@ async def predict(query: str, history: List[List[str]], request: ChatCompletionR
         delta=DeltaMessage(role="assistant"),
         finish_reason=None
     )
-    chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
+    chunk = ChatCompletionResponse(model=modelname, choices=[choice_data], object="chat.completion.chunk")
     yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
 
     current_length = 0
     #,repetition_penalty=1.1,do_sample=True,top_p=0.8
-    for new_response, _ in model.stream_chat(tokenizer, query, history=history,temperature=request.temperature,max_new_tokens=request.max_tokens):
-    # for new_response, _ in model.stream_chat(tokenizer, query, history=history):
+    #tokenizer, query, history=history, stop_words_ids=stop_words_ids, **gen_kwargs
+
+    for new_response in model.chat_stream(tokenizer, query, history=history,**gen_kwargs):
         if len(new_response) == current_length:
             continue
 
@@ -218,7 +223,7 @@ async def predict(query: str, history: List[List[str]], request: ChatCompletionR
             delta=DeltaMessage(content=new_text),
             finish_reason=None
         )
-        chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
+        chunk = ChatCompletionResponse(model=modelname, choices=[choice_data], object="chat.completion.chunk")
         yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
 
 
@@ -227,9 +232,11 @@ async def predict(query: str, history: List[List[str]], request: ChatCompletionR
         delta=DeltaMessage(),
         finish_reason="stop"
     )
-    chunk = ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion.chunk")
+    chunk = ChatCompletionResponse(model=modelname, choices=[choice_data], object="chat.completion.chunk")
     yield "{}".format(chunk.json(exclude_unset=True, ensure_ascii=False))
     yield '[DONE]'
+
+
 import tiktoken
 enc = tiktoken.get_encoding("cl100k_base")
 def process_input(model_name, inp):

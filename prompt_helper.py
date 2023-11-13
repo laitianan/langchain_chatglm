@@ -14,7 +14,7 @@ FUNTION_FORMAT_INSTRUCTIONS = """
 
 ***
 历史对话沟通记录：
-    {user_input}
+{user_input}
 ***
 
 你的回答:
@@ -40,10 +40,28 @@ def init_all_fun_prompt(parmas:InitInterfaceRequest):
     return prompt_dict
 
 
+INTENT_FORMAT_MULTI_INSTRUCTIONS: str = """
+现在有一些意图，类别为：{intents}，
+你扮演AI角色的任务是根据***分隔符的文本对话，来进行意图的识别`，对话中可能存在一个或多个意图，使用列表方式返回,比如 intention_name:["a","b"]。
+输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+```json
+{{
+    "intention_name": list  // 意图类别，意图类别必须在提供的类别中
+}}
+```
+备注意图详情描述：
+{intention_summary}
+***
+历史对话沟通记录：
+{user_input}
+***
+你的回答：
+"""
+
 
 INTENT_FORMAT_INSTRUCTIONS: str = """
 现在有一些意图，类别为：{intents}，
-你扮演AI角色的任务是根据***分隔符的文本对话，来进行意图的识别`，对话中可能存在多轮对话意图，仅仅需要判断该对话Human最后一个问题属于哪一类别意图。
+你扮演AI角色的任务是根据***分隔符的文本对话，来进行意图的识别`，对话中可能存在多轮对话意图，仅仅需要判断该对话user最后一个问题属于哪一类别意图。
 输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 ```json
 {{

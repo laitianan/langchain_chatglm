@@ -1,12 +1,12 @@
 from typing import Any, Dict, List, Literal, Union, Optional
 from pydantic import BaseModel, Field
 class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
+    role: Literal["user", "assistant", "system","function"]
     content: str
 
 
 class DeltaMessage(BaseModel):
-    role: Optional[Literal["user", "assistant", "system"]] = None
+    role: Optional[Literal["user", "assistant", "system","function"]] = None
     api_id:str
     content: Optional[str] = None
 
@@ -50,12 +50,12 @@ class TemplateResponse(BaseModel):
     template:Optional[InitInterfaceRequest]
 
 class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
+    role: Literal["user", "assistant", "system","function"]
     content: str
 
 
 class ChatCompletionRequest(BaseModel):
-    message:Union[List[ChatMessage],str]
+    message:List[ChatMessage]
 
 class FunCompletionRequest(BaseModel):
     funtion_id:Optional[str]= ""
@@ -66,6 +66,15 @@ class ChatCompletionResponse(BaseModel):
     funtion_id:Optional[str]=""
     role: Optional[str]="assistant"
     message: str
+
+class Funtion(BaseModel):
+    id:str
+    name:str
+    fro:str
+
+class Intention_Search_Response(BaseModel):
+    status: int
+    funtions: List[Funtion]
 
 class ChatResponse(BaseModel):
     status: int

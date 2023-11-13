@@ -5,18 +5,123 @@ import json
 base_url="127.0.0.1:8084"
 base_url="61.141.232.106:8084"
 
-##初始化接口模板
+#初始化接口模板
 post_json = json.dumps({"params" :[
 
-    {"name" :"订单查询" ,"id" :"888" ,"functionDesc" :"查询某订单详细信息" ,"usableFlag" :0 ,"inputParams":
-        [{"name" :"order_id" ,"type" :"string" ,"required" :1 ,"title" :"订单ID"}]},
-
-    {"name" :"销量查询" ,"id" :"999" ,"functionDesc" :"查询店铺的销量" ,"usableFlag" :0 ,"inputParams":
-        [{"name" :"shop_name" ,"type" :"string" ,"required" :1 ,"title" :"店铺名称"}
-          ,{"name" :"begin_time" ,"type" :"string" ,"required" :1 ,"title" :"查询开始时间"}
-          ,{"name" :"end_time" ,"type" :"string" ,"required" :1 ,"title" :"查询结束时间时间"}]}
+    {
+        "name": "订单号查询",
+        "id": "2114",
+        "functionDesc": "通过订单号查询订单详情",
+        "businessTypeNames": "其它业务,商城业务",
+        "businessSonTypeNames": "其它子业务,现烤店业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "orderNo",
+                "type": "STRING",
+                "required": True,
+                "title": "订单号"
+            }
+        ]
+    },
+    {
+        "name": "查某一天下单总量",
+        "id": "2116",
+        "functionDesc": "查询具体日期的下单总量",
+        "businessTypeNames": "商城业务,零售业务",
+        "businessSonTypeNames": "其它子业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "day",
+                "type": "STRING",
+                "required": True,
+                "title": "日期"
+            }
+        ]
+    },
+    {
+        "name": "门店当天实时业绩查询",
+        "id": "2117",
+        "functionDesc": "门店当天实时业绩查询",
+        "businessTypeNames": "零售业务,商城业务",
+        "businessSonTypeNames": "其它子业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "shop_name",
+                "type": "STRING",
+                "required": True,
+                "title": "店铺名称"
+            }
+        ]
+    },
+    {
+        "name": "门店按天查询业绩",
+        "id": "2118",
+        "functionDesc": "门店按天查询业绩",
+        "businessTypeNames": "其它业务",
+        "businessSonTypeNames": "其它子业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "day",
+                "type": "STRING",
+                "required": True,
+                "title": "日期"
+            },
+            {
+                "name": "shop_name",
+                "type": "STRING",
+                "required": True,
+                "title": "店铺名称"
+            }
+        ]
+    },
+    {
+        "name": "站点当天实时业绩查询",
+        "id": "2119",
+        "functionDesc": "站点当天实时业绩查询",
+        "businessTypeNames": "其它业务",
+        "businessSonTypeNames": "其它子业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "shop_name",
+                "type": "STRING",
+                "required": True,
+                "title": "站点名称"
+            }
+        ]
+    },
+    {
+        "name": "站点按天查询业绩",
+        "id": "2120",
+        "functionDesc": "站点按天查询业绩",
+        "businessTypeNames": "其它业务",
+        "businessSonTypeNames": "其它子业务",
+        "usableFlag": True,
+        "inputParams": [
+            {
+                "name": "day",
+                "type": "STRING",
+                "required": True,
+                "title": "日期"
+            },
+            {
+                "name": "shop_name",
+                "type": "STRING",
+                "required": True,
+                "title": "站点名称"
+            }
+        ]
+    }
 
 ]})
+
+
+
+
 
 # r1 = requests.post(f"http://{base_url}/init_funtion_template/completions", data=post_json)
 # print(r1.content.decode("utf8"))
@@ -28,6 +133,9 @@ post_json = json.dumps({"params" :[
 # r1 = requests.post(f"http://{base_url}/get_all_template/completions")
 # print(r1.content.decode("utf8"))
 
+
+# import requests
+# import json
 # r1 = requests.post(f"http://{base_url}/get_all_template/completions")
 # print(r1.content.decode("utf8"))
 
@@ -38,7 +146,9 @@ post_json = json.dumps({"params" :[
 
 
 ####聊天接口
-# post_json=json.dumps({"message":[{"role": "user", "content": "请问你叫什么"},{"role":"assistant","content":"我是来自阿里云的大规模语言模型，我叫通义千问。"},{"role": "user", "content": "你可以解决什么样的问题呢"}]})
+post_json=json.dumps({"message":[{"role": "user", "content": "我想查询订单456的详情"},
+                                 {"role":"function","content":'{"订单时间": "2023-11-27", "数量": "1", "金额":"178","配送状态": "正在配送之中","商品名称":"黑森林蛋糕","配送城市":"深圳南山"}'
+                                  }]})
 
 # r1 = requests.post(f"http://{base_url}/chat/completions", data=post_json)
 # print(r1.content.decode("utf8"))
@@ -54,13 +164,14 @@ import time
 
 # 意图查询
 import numpy as np
-strs=["查询订单123456","你好","查询销量"]
-for i in range(5):
+strs=["查询订单123456","你好","查询销量",'用户数量查询']
+strs=["用户数量查询","你好","订单","业绩"]
+for i in range(50):
     print("------------------------------------------------------------------")
     start_time = time.time()    # 程序开始时间
     query=np.random.choice(strs,1)[0]
     post_json =json.dumps({"message" :[{"role": "user", "content": query}]})
-    r1 = requests.post(f"http://{base_url}/chat_funtion_intention/completions", data=post_json)
+    r1 = requests.post(f"http://{base_url}/chat_intention_search/completions", data=post_json)
     # print(r1.content.decode("utf8"))
     js=json.loads(r1.content.decode("utf8"))
     # print(js["message"])
@@ -130,61 +241,48 @@ def parse_json_markdown(json_string: str) -> dict:
 # r1 = requests.post(f"http://{base_url}/chat_funtion/completions", data=post_json)
 # print(r1.content.decode("utf8"))
 
-# json_string="""```json
-# {
-# 	"orderNo": "西饼西饼"
-# }
-# ```"""
-# import re
-# import json
-# match = re.search(r"```(json)?(.*)```", json_string, re.DOTALL)
-
-# # If no match found, assume the entire string is a JSON string
-# if match is None:
-#     json_str = json_string
-# else:
-#     # If match found, use the content within the backticks
-#     json_str = match.group(2)
-
-# # Strip whitespace and newlines from the start and end
-# json_str = json_str.strip()
-
-# # Parse the JSON string into a Python dictionary
-# parsed = json.loads(json_str)
-
-# print(parsed)
-
-# 你前端可以给可以做的任务提示的，比如
+# -*- coding: utf-8 -*-
 # """
-# sorry,不是很明白你的意思。我可以提供一下帮助
-# 1.订单查询
-# 2.销量查询
-# 3.财务查询
+# Created on Thu Nov  9 18:08:31 2023
 
+# @author: 98608
 # """
 
 
+# mp={
+#     "订单售后查询":"根据用户订单ID查询用户订单售后信息",
+#     "订单状态查询":"根据用户订单ID查询用户订单状态信息",
+#     "订单配送查询":"根据用户订单ID查询用户订单目前配信息",
+#     "订单数据查询":"根据用户订单ID查询用户订单数据信息",
+#     "门店当天实时业绩查询":"门店当天实时业绩查询",
+#     "站点当天实时业绩查询":"站点当天实时业绩查询"
+#     }
 
 
+# summary=[]
+# for i,key in enumerate(mp):
+#     summary.append(f"{i+1}、{key}:{mp[key]}")
 
+# summary="\n".join(summary)
 
+# user_input="订单查询"
 
+# INTENT_FORMAT_INSTRUCTIONS: str = """
+# 现在有一些意图，类别为：{intents}，
+# 你扮演AI角色的任务是根据***分隔符的文本对话，来进行意图的识别`，对话中可能存在多轮对话意图，仅仅需要判断该对话user最后一个问题属于哪一类别意图。
+# 输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+# ```json
+# {{
+#     "intention_name": string  // 意图类别，意图类别必须在提供的类别中
+# }}
+# ```
+# 备注意图详情描述：
+# {intention_summary}
+# ***
+# 历史对话沟通记录：
+# {user_input}
+# ***
+# 你的回答：
+# """
 
-
-
-
-a='"{\'intention_name\': \'意图不明\'}"'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# query=INTENT_FORMAT_INSTRUCTIONS.format(intents=list(mp.keys()),intention_summary=summary,user_input=user_input)

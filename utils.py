@@ -21,6 +21,18 @@ def save_interface_template(data,path):
 
 
 
+def parse_json_markdown_for_list(json_string: str) -> list:
+    match = re.search( r"(\[(.*?)\])", json_string, re.DOTALL)
+    if match is None:
+        json_str = '[]'
+    else:
+        json_str = match.group(0)
+    json_str = json_str.strip()
+    try:
+        return literal_eval(json_str)
+    except :
+        return []
+
 
 def parse_json_markdown(json_string: str) -> dict:
     """

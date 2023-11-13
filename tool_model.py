@@ -47,7 +47,7 @@ class Model_Tool(functional_Tool):
 
 class Unknown_Intention_Model_Tool(functional_Tool):
     llm: BaseLanguageModel
-
+    id: str="000000"
     llm_chain: LLMChain = None
     name:str="意图不明"
     description:str="用户随便询问的内容,当其他意图不匹配时请选择该意图"

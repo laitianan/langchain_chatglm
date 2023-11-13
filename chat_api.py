@@ -42,7 +42,9 @@ ChatCompletionResponse,
 FunCompletionRequest,
 ChatResponse,
 DeleteResponse,
-TemplateResponse
+TemplateResponse,
+Intention_Search_Response,
+Funtion
 
 )
 app.add_middleware(
@@ -87,13 +89,57 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
 
     return wrapper
 
+import openai
+from  config import api_base
+openai.api_base = api_base
+openai.api_key = "none"
+
+def call_qwen(messages):
+    messages=[{"role":mess.role,"content":mess.content} for mess in  messages]
+    if messages[-1]["role"]=="function":
+        mess = messages.pop(-1)
+        messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "function_call": {
+                    "name": "get_info",
+                    "arguments": '{"info": ""}',
+                },
+            },
+        )
+        messages.append(mess)
+        functions=[{
+            "name": "get_info",
+            "description": "语言组织.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "info": {
+                        "type": "string",
+                        "description": "用户需要组织的语言",
+                    }
+                },
+                "required": ["info"],
+            },
+        }]
+        response = openai.ChatCompletion.create(
+            model="Qwen", messages=messages, functions=functions
+        )
+    else:
+        response = openai.ChatCompletion.create(model="Qwen", messages=messages)
+    # print(response)
+    # print("*****",response.choices[0].message.content)
+    return response
 
 @app.post("/chat/completions", response_model=ChatResponse)
 @raise_UnicornException
 async def chat(request: ChatCompletionRequest):
+    # llm=openai_model()
+    # resp=llm.predict(request.message)
+    response=call_qwen(request.message)
+    resp=response.choices[0].message.content
 
-    llm=openai_model()
-    resp=llm.predict(request.message)
     return ChatResponse(status=200,message=resp)
 
 
@@ -142,7 +188,7 @@ def merge_message(message):
         for chatMessage in message:
             history.append(f"{chatMessage.role}:{chatMessage.content}")
     history="\n".join(history)
-
+    logging.info(f"具体参数：{history}")
     return history
 
 
@@ -162,45 +208,66 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
 
 
+# ,
+# Funtion
+import asyncio
 
 
-# @app.post("/chat_funtion/completions", response_model=ChatCompletionResponse)
-# @raise_UnicornException
-# async def chat_funtion(request: FunCompletionRequest):
-#     global  toos_dict
-#
-#     tool=toos_dict[request.funtion_id]
-#     query=merge_message(request.message)
-#     _,message=tool._run(query)
-#     return ChatCompletionResponse(status=200,funtion_id=request.funtion_id,message=message)
+# async def f(request: FunCompletionRequest):
+#     global search, agent_exec
+#     mess=merge_message(request.message)
+#     query=request.message[-1].content
+#     docs, infos = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.choose_tools(mess))
+
+
+@app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
+@raise_UnicornException
+async def chat_intention_search(request: ChatCompletionRequest):
+    global  search,agent_exec
+
+    mess=merge_message(request.message)
+    query=request.message[-1].content
+    docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
+    # logging.info(str(docs1))
+    # logging.info(str(docs2))
+    docs2.extend(docs1)
+    docs2=list(set(docs2))
+    funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs2]
+
+
+    return Intention_Search_Response(status=200,funtions=funtions)
 
 
 def init_run():
-    global  agent_exec,toos_dict,llm,initparam
+    global  agent_exec,toos_dict,llm,initparam,search
 
     initparam = load_interface_template(saveinterfacepath)
     if not initparam:
         return
+    from search_intention import  Doc,Query_Search
+    search = Query_Search()
     llm = myOpenAi(temperature=0.8,max_tokens=2000)
     toos_dict = {}
-
+    docs=[]
     prompt_dict=init_all_fun_prompt(initparam)
     for param in initparam.params  :
         if param.usableFlag:
             toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict)
+            docs.append(Doc(funtion_id=param.id, name=param.name))
+    search.load(docs)
     tools=list(toos_dict.values())
     unknowntool=Unknown_Intention_Model_Tool(llm=llm)
     tools.append(unknowntool)
     # # 选择工具
     agent = IntentAgent(tools=tools, llm=llm,default_intent_name=unknowntool.name)
     agent_exec = AgentExecutor.from_agent_and_tools(agent=agent,  tools=tools, verbose=False,max_iterations=1)
-    return agent_exec,toos_dict,llm,initparam
+    return agent_exec,toos_dict,llm,initparam,search
 
 if __name__ == "__main__":
 
-    agent_exec,toos_dict,llm,initparam=None,None,None,None
+    agent_exec,toos_dict,llm,initparam,search=None,None,None,None,None
     init_run()
-    uvicorn.run(app, host='0.0.0.0', port=8084, workers=3)
+    uvicorn.run(app, host='0.0.0.0', port=8084, workers=1)
 
 
 
