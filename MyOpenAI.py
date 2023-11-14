@@ -33,7 +33,7 @@ class  myOpenAi(ChatOpenAI):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
-        res={
+        parm={
             "model": self.model_name,
             "request_timeout": self.request_timeout,
             "max_tokens": self.max_tokens,
@@ -41,9 +41,10 @@ class  myOpenAi(ChatOpenAI):
             "n": self.n,
             "temperature": self.temperature,
             "max_length": self.max_length,
+            "top_p":self.top_p,
             **self.model_kwargs,
         }
-        return res
+        return parm
 
 class openai_model():
 
@@ -82,45 +83,24 @@ class myOpenAIEmbeddings(OpenAIEmbeddings):
 if __name__ == '__main__':
     llm = myOpenAi()
 
-    mp = {
-        "订单售后查询": "根据用户订单ID查询用户订单售后信息",
-        "订单状态查询": "根据用户订单ID查询用户订单状态信息",
-        "订单配送查询": "根据用户订单ID查询用户订单目前配信息",
-        "订单数据查询": "根据用户订单ID查询用户订单数据信息",
-        "门店当天实时业绩查询": "门店当天实时业绩查询",
-        "站点当天实时业绩查询": "站点当天实时业绩查询"
-    }
+    text="""
+你的任务是根据***分隔符的历史对话沟通记录，从user和assistant聊天记录理解user需求，并从聊天记录抽取正确的结构值以结构化数据格式返回，取不到的值使用None代替,
+时间字段直接从user聊天抽取不出来需结合系统当前时间推理,系统当前时间2023-11-14 15:14:05,比如则根据系统当前时间推理:今天的日期为2023-11-14 00:00:00,严格禁止生成聊天记录不存在的数据,
+输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+```json
+{
+	"shop_name": STRING  // 店铺名称，抽取不到时使用"None"代替.
+	"begin_time": STRING  // 开始时间(YYYY-MM-HH)，抽取不到时使用"None"代替
+	"end_time": STRING  // 结束时间(YYYY-MM-HH)，抽取不到时使用"None"代替
+}
+历史对话沟通记录：
+***
+user:前天366大街早上八点十分钟到晚上六点半的销售量
+***
+你的回答:
+"""
 
-    summary = []
-    for i, key in enumerate(mp):
-        summary.append(f"{i + 1}、{key}:{mp[key]}")
+    for i in range(100):
 
-    summary = "\n".join(summary)
-
-    user_input = "订单查询"
-
-    INTENT_FORMAT_INSTRUCTIONS: str = """
-    现在有一些意图，类别为：{intents}，
-    你扮演AI角色的任务是根据***分隔符的文本对话，来进行一种或多种的意图识别，语义或关键词匹配识别，请使用列表方式返回。
-    输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
-    ```json
-    {{
-        "intention_name": list  // 意图类别数组，意图类别必须在提供的类别中，比如
-    }}
-    ```
-    备注意图详情描述：
-    {intention_summary}
-    ***
-    历史对话沟通记录：
-    {user_input}
-    ***
-    你的回答：
-    """
-
-    query = INTENT_FORMAT_INSTRUCTIONS.format(intents=list(mp.keys()), intention_summary=summary, user_input=user_input)
-
-    res = llm.predict(query)
-    print(res)
-    # embeddings=myOpenAIEmbeddings()
-    # res=embeddings.embed_query("你好")
-    # print(res)
+        res = llm.predict(text)
+        print(i,res)

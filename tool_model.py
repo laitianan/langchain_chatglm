@@ -24,9 +24,10 @@ class Model_Tool(functional_Tool):
         i=0
         current_time = datetime.datetime.now()
         current_time=str(current_time)[:19]
+        current_date=current_time[:10]
         while True:
             i+=1
-            resp = self.llm_chain.predict(user_input=query,current_time=current_time)
+            resp = self.llm_chain.predict(user_input=query,current_time=current_time,current_date=current_date)
             try:
                 if resp.find('None\n')!=-1:
                     resp = resp.replace('None\n', '"None"\n')

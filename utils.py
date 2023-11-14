@@ -35,29 +35,19 @@ def parse_json_markdown_for_list(json_string: str) -> list:
 
 
 def parse_json_markdown(json_string: str) -> dict:
-    """
-    Parse a JSON string from a Markdown string.
-
-    Args:
-        json_string: The Markdown string.
-
-    Returns:
-        The parsed JSON object as a Python dictionary.
-    """
-    # Try to find JSON string within triple backticks
     match = re.search(r"```(json)?(.*)```", json_string, re.DOTALL)
-
-    # If no match found, assume the entire string is a JSON string
     if match is None:
-        json_str = json_string
+        match = re.search(r"{.*}", json_string, re.DOTALL)
+        if match is None:
+            json_str = json_string
+        else:
+            json_str = match.group(0)
+            # print("8"*20,json_str)
     else:
-        # If match found, use the content within the backticks
         json_str = match.group(2)
+        # print("9" * 20,json_str)
 
-    # Strip whitespace and newlines from the start and end
     json_str = json_str.strip()
-    # json_str= literal_eval(json_str)
-    # # Parse the JSON string into a Python dictionary
-    # parsed = json.loads(json_str)
+
     return literal_eval(json_str)
 

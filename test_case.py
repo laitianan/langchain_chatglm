@@ -164,14 +164,15 @@ import time
 
 # 意图查询
 import numpy as np
-strs=["查询订单123456","你好","查询销量",'用户数量查询']
-strs=["用户数量查询","你好","订单","业绩"]
-for i in range(50):
+strs=["查询今天下午六点前366大街的业绩"]
+# strs=["查询今天366大街的业绩"]
+for i in range(10):
     print("------------------------------------------------------------------")
     start_time = time.time()    # 程序开始时间
     query=np.random.choice(strs,1)[0]
-    post_json =json.dumps({"message" :[{"role": "user", "content": query}]})
-    r1 = requests.post(f"http://{base_url}/chat_intention_search/completions", data=post_json)
+    post_json =json.dumps({"funtion_id":"2120","message" :[{"role": "user", "content": query}]})
+    # r1 = requests.post(f"http://{base_url}/chat_intention_search/completions", data=post_json)
+    r1 = requests.post(f"http://{base_url}/chat_funtion_intention/completions", data=post_json)
     # print(r1.content.decode("utf8"))
     js=json.loads(r1.content.decode("utf8"))
     # print(js["message"])

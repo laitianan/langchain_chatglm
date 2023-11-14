@@ -438,7 +438,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
             stop_words.append("Observation:")
 
     query, history = parse_messages(request.messages, request.functions)
-    logging.info(f"查询语句：\t {query.__str__()},\t 历史记录：\t {history}")
+    # logging.info(f"查询语句：\t {query.__str__()},\t 历史记录：\t {history}")
     if request.stream:
         if request.functions:
             raise HTTPException(
@@ -459,7 +459,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
             stop_words_ids=stop_words_ids,
             **gen_kwargs
         )
-        print(f"<chat>\n{history}\n{query}\n<!-- *** -->\n{response}\n</chat>")
+        logging.info(f"\n\n\n\n<chat>\nhistory:\t{history}\nquery:\t{query}\n<!-- *** -->\nresponse:\t{response}\n</chat>\n\n\n")
     _gc()
 
     response = trim_stop_words(response, stop_words)

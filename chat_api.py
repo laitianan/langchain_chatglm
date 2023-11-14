@@ -103,21 +103,21 @@ def call_qwen(messages):
                 "role": "assistant",
                 "content": None,
                 "function_call": {
-                    "name": "get_info",
+                    "name": "beautify_language",
                     "arguments": '{"info": ""}',
                 },
             },
         )
         messages.append(mess)
         functions=[{
-            "name": "get_info",
-            "description": "语言组织.",
+            "name": "beautify_language",
+            "description": "使用AI客服风格，重新组织美化语言回复用户问题",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "info": {
                         "type": "string",
-                        "description": "用户需要组织的语言",
+                        "description": "系统查询到的数据",
                     }
                 },
                 "required": ["info"],
@@ -143,8 +143,8 @@ async def chat(request: ChatCompletionRequest):
     return ChatResponse(status=200,message=resp)
 
 
-@app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
-@raise_UnicornException
+# @app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
+# @raise_UnicornException
 async def del_temp():
     path = os.path.join(saveinterfacepath, "interface_template.pkl")
     if os.path.exists(path):
@@ -228,10 +228,11 @@ async def chat_intention_search(request: ChatCompletionRequest):
     mess=merge_message(request.message)
     query=request.message[-1].content
     docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
-    # logging.info(str(docs1))
-    # logging.info(str(docs2))
-    docs2.extend(docs1)
-    docs2=list(set(docs2))
+    d2=[]
+    for e in docs1:
+        if e not in docs2:
+            d2.append(e)
+    docs2.extend(d2)
     funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs2]
 
 

@@ -39,9 +39,9 @@ class Query_Search(object):
     def load(self,docs:List[Doc]):
         for doc in docs:
             for word in jieba.lcut(doc.name) :
-                if  word not in ["查询"]:
-                    a=self.word_docs[word]
-                    a.add(doc)
+                # if  word not in ["查询"]:
+                self.word_docs[word].add(doc)
+
 
     def __sim_rank__(self,query)->List[Doc]:
         docs = set()
@@ -49,8 +49,8 @@ class Query_Search(object):
             docs = docs.union(self.word_docs[word])
 
         for doc in docs:
-            # doc.score = Levenshtein.jaro(query, doc.name)
-            doc.score=0
+            doc.score = Levenshtein.jaro(query, doc.name)
+            # doc.score=0
             doc.fro = "SEARCH"
         docs = list(docs)
         # docs = [e for e in docs if e.score > 0]
@@ -66,7 +66,7 @@ class Query_Search(object):
         return self.__sim_rank__(query)
 
 if __name__ == '__main__':
-    docs=["门店当天实时业绩查询","门店按天查询业绩"
+    docs=["门店当天实时业绩查询","门店按天查询业绩",
 "站点当天实时业绩查询","站点按天查询业绩"]
 
 
@@ -74,7 +74,9 @@ if __name__ == '__main__':
 
     search=Query_Search()
     search.load(docs)
-    sim=search.calc_similarity_rank("业绩")
+    sim=search.calc_similarity_rank("当天")
+    for doc in sim:
+        print(doc.name,doc.score)
     print(sim)
 
     # bm25 = BM25()
@@ -100,3 +102,12 @@ if __name__ == '__main__':
     # # Levenshtein距离
     # sim = Levenshtein.jaro(str1, str2)
     # print('Levenshtein similarity: ', sim)
+
+    import jieba
+
+    str = "幸福西饼是一家制作蛋糕非常美味的连锁企业"
+
+    res=jieba.lcut(str,cut_all=True)
+    print(res)
+    res=jieba.lcut(str)
+    print(res)

@@ -6,17 +6,14 @@ InitInterfaceRequest,
 Interface
 )
 FUNTION_FORMAT_INSTRUCTIONS = """
-
-你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
-系统当前时间{current_time}，部分时间需要结合聊天记录以及前时间推理，
+你的任务是根据***分隔符的历史对话沟通记录，从user和assistant聊天记录理解user需求，并从聊天记录抽取正确的结构值以结构化数据格式返回，取不到的值使用None代替,
+部分时间直接从user聊天抽取不出来才结合系统当前时间推理,系统当前时间{current_time},比如则根据系统当前时间推理:今天的日期为{current_date} 00:00:00,严格禁止生成聊天记录不存在的数据,
 输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 {format_instructions}
-
-***
 历史对话沟通记录：
+***
 {user_input}
 ***
-
 你的回答:
 """
 def create_fun_prompt(param:Interface)->PromptTemplate:
@@ -25,7 +22,7 @@ def create_fun_prompt(param:Interface)->PromptTemplate:
     # 获取响应格式化的指令
     format_instructions = output_parser.get_format_instructions(only_json=True)
     prompt = PromptTemplate(
-        input_variables=["user_input","current_time"],
+        input_variables=["user_input","current_time","current_date"],
         partial_variables={"format_instructions": format_instructions},
         template=FUNTION_FORMAT_INSTRUCTIONS
     )
@@ -55,7 +52,7 @@ INTENT_FORMAT_MULTI_INSTRUCTIONS: str = """
 历史对话沟通记录：
 {user_input}
 ***
-你的回答：
+你的回答:
 """
 
 
@@ -74,7 +71,7 @@ INTENT_FORMAT_INSTRUCTIONS: str = """
 历史对话沟通记录：
 {user_input}
 ***
-你的回答：
+你的回答:
 """
 
 
@@ -85,50 +82,3 @@ if __name__ == '__main__':
     from MyOpenAI import myOpenAi
 
     llm = myOpenAi(temperature=0.8,max_tokens=2000)
-
-    intents=['游戏角色信息查询', '演员信息查询', '其他意图', '用户购买订单信息查询', '店铺销量统计信息查询']
-    intention_summary="""
-    1.游戏角色信息查询: 存有一些角色和信息的工具，输入应该是对游戏角色的询问
-    2.演员信息查询: 存有一些演员的工具，输入应该是对演员的询问
-    3.其他意图: 用户随便询问的内容,当其他意图不匹配时请选择该意图
-    4.用户购买订单信息查询: 根据订单id查询订单详情信息的工具，输入应该是对订单的询问
-    5.店铺销量统计信息查询: 销量信息查询工具，主要是店铺总销量查询信息，输入是对指定店铺名称或店铺ID，查询某时间段的总销量
-    """
-    # from utils import load_interface_template
-    #
-    #
-    # init_obj=load_interface_template("./data/")
-    # prompt=get_fun_prompt('999',init_obj)
-    # prompt = PromptTemplate(
-    #     input_variables=["user_input"],
-    #     partial_variables={"intention_summary": intention_summary,"intents":intents},
-    #     template=intent_template
-    # )
-
-    # input=INTENT_FORMAT_INSTRUCTIONS.format(user_input="物理应该怎么学习",intention_summary=intention_summary,intents=intents)
-    # print(input)
-    # print("-------------------------------------------------------------------------------------")
-    # res=llm.predict(input)
-    # print(res)
-
-    tmp="""
-    你的任务是根据***分隔符的历史对话沟通记录，理解聊天记录用户最后需求，并抽取值以结构化数据格式返回，取不到的值使用None代替，严格禁止生成聊天记录不存在的数据，
-输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
-
-```json
-{
-	"order_id": string  // 订单ID，抽取不到时使用None代替
-	"datetime": string  // 订单时间，抽取不到时使用None代替
-}
-```
-
-***
-历史对话沟通记录：
-    user:我想查询半年前订单456的总销量详情详情
-***
-
-你的回答:
-            """
-
-    res=llm.predict(tmp)
-    print(res)
