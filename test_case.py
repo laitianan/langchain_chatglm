@@ -3,7 +3,7 @@ import requests
 import json
 
 base_url="127.0.0.1:8084"
-base_url="61.141.232.106:8084"
+## base_url="61.141.232.106:8084"
 
 #初始化接口模板
 post_json = json.dumps({"params" :[
@@ -123,15 +123,15 @@ post_json = json.dumps({"params" :[
 
 
 
-# r1 = requests.post(f"http://{base_url}/init_funtion_template/completions", data=post_json)
-# print(r1.content.decode("utf8"))
+r1 = requests.post(f"http://{base_url}/init_funtion_template/completions", data=post_json)
+print(r1.content.decode("utf8"))
 
 # r1 = requests.post(f"http://{base_url}/init_funtion_template/completions", data=post_json)
 # print(r1.content.decode("utf8"))
 # r1 = requests.post(f"http://{base_url}/delete_all_funtion_template/completions")
 # print(r1.content.decode("utf8"))
-# r1 = requests.post(f"http://{base_url}/get_all_template/completions")
-# print(r1.content.decode("utf8"))
+r1 = requests.post(f"http://{base_url}/get_all_template/completions")
+print(r1.content.decode("utf8"))
 
 
 # import requests
@@ -164,7 +164,7 @@ import time
 
 # 意图查询
 import numpy as np
-strs=["查询今天下午六点前366大街的业绩"]
+strs=["查询今天下午六点366大街的业绩"]
 # strs=["查询今天366大街的业绩"]
 for i in range(10):
     print("------------------------------------------------------------------")

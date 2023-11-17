@@ -459,7 +459,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
             stop_words_ids=stop_words_ids,
             **gen_kwargs
         )
-        logging.info(f"\n\n\n\n<chat>\nhistory:\t{history}\nquery:\t{query}\n<!-- *** -->\nresponse:\t{response}\n</chat>\n\n\n")
+        logging.info(f"<chat>\n\n\n\nhistory:\t{history}\nquery:\t{query}\n<!-- *** -->\nresponse:\n{response}\n\n\n\n</chat>")
     _gc()
 
     response = trim_stop_words(response, stop_words)
