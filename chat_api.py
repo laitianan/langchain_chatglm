@@ -5,6 +5,9 @@ import uvicorn
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from watchdog.observers import Observer
+
+from global_config import ChatConfig
 from prompt_helper import  init_all_fun_prompt
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -15,11 +18,14 @@ from functools import wraps
 from langchain.agents import AgentExecutor
 from intentAgent_model import IntentAgent
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
-from MyOpenAI import myOpenAi,openai_model
+from MyOpenAI import myOpenAi, call_qwen
 from prompt_helper import init_all_fun_prompt
 from utils import load_interface_template,save_interface_template
 import time
 import logging
+
+from watch import FileEventHandler
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
@@ -89,48 +95,6 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
 
     return wrapper
 
-import openai
-from  config import api_base
-openai.api_base = api_base
-openai.api_key = "none"
-
-def call_qwen(messages):
-    messages=[{"role":mess.role,"content":mess.content} for mess in  messages]
-    if messages[-1]["role"]=="function":
-        mess = messages.pop(-1)
-        messages.append(
-            {
-                "role": "assistant",
-                "content": None,
-                "function_call": {
-                    "name": "beautify_language",
-                    "arguments": '{"info": ""}',
-                },
-            },
-        )
-        messages.append(mess)
-        functions=[{
-            "name": "beautify_language",
-            "description": "使用AI客服风格，重新组织美化语言回复用户问题",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "info": {
-                        "type": "string",
-                        "description": "系统查询到的数据",
-                    }
-                },
-                "required": ["info"],
-            },
-        }]
-        response = openai.ChatCompletion.create(
-            model="Qwen", messages=messages, functions=functions
-        )
-    else:
-        response = openai.ChatCompletion.create(model="Qwen", messages=messages)
-    # print(response)
-    # print("*****",response.choices[0].message.content)
-    return response
 
 @app.post("/chat/completions", response_model=ChatResponse)
 @raise_UnicornException
@@ -146,16 +110,18 @@ async def chat(request: ChatCompletionRequest):
 # @app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
 # @raise_UnicornException
 async def del_temp():
+    global  chatconfig
     path = os.path.join(saveinterfacepath, "interface_template.pkl")
     if os.path.exists(path):
         os.remove(path)
-    init_run()
+    chatconfig.init_run()
     return DeleteResponse(status=200,message="删除所有模板成功")
 
 @app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
 @raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
-    global  initparam
+    global chatconfig
+    initparam = chatconfig.initparam
     if initparam  :
         interface_fun = {param.id:param for param in initparam.params}
         for param in request.params:
@@ -166,7 +132,7 @@ async def init_funtion_template(request: InitInterfaceRequest):
     else:
         initparam=request
     save_interface_template(initparam, path=saveinterfacepath)
-    init_run()
+    chatconfig.init_run()
     res=InitInterfaceResponse(status=200,message="添加模板成功")
     return res
 
@@ -195,7 +161,9 @@ def merge_message(message):
 @app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
 @raise_UnicornException
 async def chat_funtion_intention(request: FunCompletionRequest):
-    global  agent_exec,toos_dict
+    global chatconfig
+    agent_exec,toos_dict = chatconfig.agent_exec, chatconfig.toos_dict
+
     if request.funtion_id is None or request.funtion_id=='':
         query=merge_message(request.message)
         fun_id,message=agent_exec.run(query)
@@ -223,10 +191,13 @@ import asyncio
 @app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
 @raise_UnicornException
 async def chat_intention_search(request: ChatCompletionRequest):
-    global  search,agent_exec
+    global  chatconfig
 
+    search, agent_exec=chatconfig.search,chatconfig.agent_exec
     mess=merge_message(request.message)
     query=request.message[-1].content
+    # docs1=await search.cal_similarity_rank(query)
+    # docs2=await agent_exec.agent.choose_tools(mess)
     docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
     d2=[]
     for e in docs1:
@@ -238,37 +209,19 @@ async def chat_intention_search(request: ChatCompletionRequest):
 
     return Intention_Search_Response(status=200,funtions=funtions)
 
-
-def init_run():
-    global  agent_exec,toos_dict,llm,initparam,search
-
-    initparam = load_interface_template(saveinterfacepath)
-    if not initparam:
-        return
-    from search_intention import  Doc,Query_Search
-    search = Query_Search()
-    llm = myOpenAi(temperature=0.8,max_tokens=2000)
-    toos_dict = {}
-    docs=[]
-    prompt_dict=init_all_fun_prompt(initparam)
-    for param in initparam.params  :
-        if param.usableFlag:
-            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict)
-            docs.append(Doc(funtion_id=param.id, name=param.name))
-    search.load(docs)
-    tools=list(toos_dict.values())
-    unknowntool=Unknown_Intention_Model_Tool(llm=llm)
-    tools.append(unknowntool)
-    # # 选择工具
-    agent = IntentAgent(tools=tools, llm=llm,default_intent_name=unknowntool.name)
-    agent_exec = AgentExecutor.from_agent_and_tools(agent=agent,  tools=tools, verbose=False,max_iterations=1)
-    return agent_exec,toos_dict,llm,initparam,search
+chatconfig=ChatConfig()
+agent_exec,toos_dict,llm,initparam,search=chatconfig.get_init()
 
 if __name__ == "__main__":
 
-    agent_exec,toos_dict,llm,initparam,search=None,None,None,None,None
-    init_run()
-    uvicorn.run(app, host='0.0.0.0', port=8084, workers=1)
+    # agent_exec,toos_dict,llm,initparam,search=None,None,None,None,None
+    # init_run()
+
+    event_handler = FileEventHandler()
+    observer = Observer()
+    observer.schedule(event_handler, chatconfig.saveinterfacepath, recursive=True)
+    observer.start()
+    uvicorn.run("chat_api:app", host='0.0.0.0', port=8084, workers=2)
 
 
 

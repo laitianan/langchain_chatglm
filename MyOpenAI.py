@@ -71,6 +71,48 @@ class openai_model():
         content=res["choices"][0]["message"]["content"]
         return content
 
+import openai
+# from  config import api_base
+openai.api_base = api_base
+openai.api_key = "none"
+
+def call_qwen(messages):
+    messages=[{"role":mess.role,"content":mess.content} for mess in  messages]
+    if messages[-1]["role"]=="function":
+        mess = messages.pop(-1)
+        messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "function_call": {
+                    "name": "beautify_language",
+                    "arguments": '{"info": ""}',
+                },
+            },
+        )
+        messages.append(mess)
+        functions=[{
+            "name": "beautify_language",
+            "description": "使用AI客服风格，重新组织美化语言回复用户问题",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "info": {
+                        "type": "string",
+                        "description": "系统查询到的数据",
+                    }
+                },
+                "required": ["info"],
+            },
+        }]
+        response = openai.ChatCompletion.create(
+            model="Qwen", messages=messages, functions=functions
+        )
+    else:
+        response = openai.ChatCompletion.create(model="Qwen", messages=messages)
+    # print(response)
+    # print("*****",response.choices[0].message.content)
+    return response
 
 class myOpenAIEmbeddings(OpenAIEmbeddings):
     ##model 一定要写OpenAIEmbeddings，自定义后台有做判断，而 curl 传递参数model，可以随便填写，其中原因是openai提交方式会把文字token转换为数字之后传递到后台，需重新把数字转文字。

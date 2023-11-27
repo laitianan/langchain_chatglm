@@ -68,7 +68,7 @@ class IntentAgent(BaseSingleActionAgent):
         # logging.info(f"解析后：{resp}-------------------------------------------------")
         docs=set()
         for i,name in enumerate(resp) :
-            if name !=self.default_intent_name:
+            if name !=self.default_intent_name and name in self.tool_names:
                 docs.add(Doc(self.name_id_map[name],name,100.0-i-1,"AI"))
 
         return list(docs)

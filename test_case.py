@@ -3,7 +3,7 @@ import requests
 import json
 
 base_url="127.0.0.1:8084"
-## base_url="61.141.232.106:8084"
+# base_url="61.141.232.106:8084"
 
 #初始化接口模板
 post_json = json.dumps({"params" :[
@@ -14,7 +14,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "通过订单号查询订单详情",
         "businessTypeNames": "其它业务,商城业务",
         "businessSonTypeNames": "其它子业务,现烤店业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "orderNo",
@@ -30,7 +30,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "查询具体日期的下单总量",
         "businessTypeNames": "商城业务,零售业务",
         "businessSonTypeNames": "其它子业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "day",
@@ -46,7 +46,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "门店当天实时业绩查询",
         "businessTypeNames": "零售业务,商城业务",
         "businessSonTypeNames": "其它子业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "shop_name",
@@ -62,7 +62,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "门店按天查询业绩",
         "businessTypeNames": "其它业务",
         "businessSonTypeNames": "其它子业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "day",
@@ -84,7 +84,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "站点当天实时业绩查询",
         "businessTypeNames": "其它业务",
         "businessSonTypeNames": "其它子业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "shop_name",
@@ -100,7 +100,7 @@ post_json = json.dumps({"params" :[
         "functionDesc": "站点按天查询业绩",
         "businessTypeNames": "其它业务",
         "businessSonTypeNames": "其它子业务",
-        "usableFlag": True,
+        "usableFlag": False,
         "inputParams": [
             {
                 "name": "day",
@@ -130,8 +130,8 @@ print(r1.content.decode("utf8"))
 # print(r1.content.decode("utf8"))
 # r1 = requests.post(f"http://{base_url}/delete_all_funtion_template/completions")
 # print(r1.content.decode("utf8"))
-r1 = requests.post(f"http://{base_url}/get_all_template/completions")
-print(r1.content.decode("utf8"))
+# r1 = requests.post(f"http://{base_url}/get_all_template/completions")
+# print(r1.content.decode("utf8"))
 
 
 # import requests
@@ -146,9 +146,9 @@ print(r1.content.decode("utf8"))
 
 
 ####聊天接口
-post_json=json.dumps({"message":[{"role": "user", "content": "我想查询订单456的详情"},
-                                 {"role":"function","content":'{"订单时间": "2023-11-27", "数量": "1", "金额":"178","配送状态": "正在配送之中","商品名称":"黑森林蛋糕","配送城市":"深圳南山"}'
-                                  }]})
+# post_json=json.dumps({"message":[{"role": "user", "content": "我想查询订单456的详情"},
+#                                  {"role":"function","content":'{"订单时间": "2023-11-27", "数量": "1", "金额":"178","配送状态": "正在配送之中","商品名称":"黑森林蛋糕","配送城市":"深圳南山"}'
+#                                   }]})
 
 # r1 = requests.post(f"http://{base_url}/chat/completions", data=post_json)
 # print(r1.content.decode("utf8"))
@@ -166,13 +166,13 @@ import time
 import numpy as np
 strs=["查询今天下午六点366大街的业绩"]
 # strs=["查询今天366大街的业绩"]
-for i in range(10):
+for i in range(0):
     print("------------------------------------------------------------------")
     start_time = time.time()    # 程序开始时间
     query=np.random.choice(strs,1)[0]
-    post_json =json.dumps({"funtion_id":"2120","message" :[{"role": "user", "content": query}]})
-    # r1 = requests.post(f"http://{base_url}/chat_intention_search/completions", data=post_json)
-    r1 = requests.post(f"http://{base_url}/chat_funtion_intention/completions", data=post_json)
+    post_json =json.dumps({"message" :[{"role": "user", "content": query}]})
+    r1 = requests.post(f"http://{base_url}/chat_intention_search/completions", data=post_json)
+    # r1 = requests.post(f"http://{base_url}/chat_funtion_intention/completions", data=post_json)
     # print(r1.content.decode("utf8"))
     js=json.loads(r1.content.decode("utf8"))
     # print(js["message"])
@@ -287,3 +287,49 @@ def parse_json_markdown(json_string: str) -> dict:
 # """
 
 # query=INTENT_FORMAT_INSTRUCTIONS.format(intents=list(mp.keys()),intention_summary=summary,user_input=user_input)
+
+
+
+
+# python -m fastchat.serve.vllm_worker --model-path /data/laitianan/qwen-14b-4bit --trust-remote-code
+
+
+
+
+
+
+
+
+
+
+
+
+
+# curl http://192.168.0.11:8081/v1/chat/completions \
+# -X POST \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#       "model": "qwen-14b-4bit",
+#       "messages": [{"role": "user", "content": "Say this is a test!"}],
+#       "temperature": 0.7
+#     }' 
+
+
+
+
+
+# curl http://localhost:8081/v1/completions \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "model": "qwen-14b-4bit",
+#     "prompt": "Say this is a test!",
+#     "max_tokens": 2000,
+#     "temperature": 0.7
+#   }'
+
+
+# python -m fastchat.serve.vllm_worker --model-path "/home/ubuntu/.cache/modelscope/hub/qwen/Qwen-14B-Chat" --trust-remote-code
+
+
+
+

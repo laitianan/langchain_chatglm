@@ -598,7 +598,8 @@ def _get_args():
         "-c",
         "--checkpoint-path",
         type=str,
-        default="/data/laitianan/qwen-14b-4bit",
+        default="/data/laitianan/qwen-14b-4bit",  #/home/ubuntu/.cache/modelscope/hub/qwen/Qwen-14B-Chat
+        # default="/home/ubuntu/.cache/modelscope/hub/qwen/Qwen-14B-Chat",
         help="Checkpoint name or path, default to %(default)r",
     )
 
@@ -648,6 +649,8 @@ if __name__ == "__main__":
         device_map=device_map,
         trust_remote_code=True,
         resume_download=True,
+        # bf16=True,
+
     ).eval()
 
     model.generation_config = GenerationConfig.from_pretrained(
