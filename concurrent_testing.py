@@ -263,8 +263,8 @@ if __name__ == '__main__':
     phone = "150000000"
     password = "123456"
 
-    THREAD_NUM =1  # 并发线程总数
-    ONE_WORKER_NUM = 10  # 每个线程的循环次数
+    THREAD_NUM =50  # 并发线程总数
+    ONE_WORKER_NUM = 100  # 每个线程的循环次数
     LOOP_SLEEP = 0.1  # 每次请求时间间隔(秒)
     ERROR_NUM = 0  # 出错数
     model="Qwen-7B-Chat"
