@@ -17,7 +17,6 @@ def load_interface_template(pathname="interface_template_dict.pkl")->InitInterfa
     else:
         return None
 
-
 def save_interface_template(data:InitInterfaceRequest,pathname="interface_template_dict.pkl"):
 
     with open(pathname, 'wb') as f:
