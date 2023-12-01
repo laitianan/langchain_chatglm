@@ -57,6 +57,14 @@ def parse_json_markdown_for_list(json_string: str) :
 
 
 def parse_json_markdown(json_string: str) -> dict:
+    try:
+        return literal_eval(json_string)
+    except:
+        try:
+            return json.loads(json_string)
+        except:
+            pass
+
     match = re.search(r"```(json)?(.*)```", json_string, re.DOTALL)
     if match is None:
         match = re.search(r"{.*}", json_string, re.DOTALL)

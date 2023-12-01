@@ -6,20 +6,18 @@ from api_protocol import (
 )
 
 FUNTION_FORMAT_INSTRUCTIONS = """
-你的任务是根据***分隔符的历史对话沟通记录,从user和assistant聊天记录理解user需求,并结合聊天记录上下文抽取最后正确的结构值以结构化数据格式返回,取不到的值使用null代替,不能虚拟用户表达不存在的数据,比如用户说查询订单的详情,因为没有表明订单ID,所以属性orderNo为空,返回{{"orderNo":null}}
-部分时间直接从user聊天抽取不出来才结合系统当前时间推理,系统当前时间{current_time},
-比如根据系统当前时间推理:今天的开始日期时间为{current_date} 00:00:00,今天的结束日期时间为{current_date} 23:59:59,今天的日期为{current_date},
+给你下面的系统背景、api参数文档说明以及聊天记录:
+当前系统背景：
+当前时间{current_time},今天的开始日期时间为{current_date} 00:00:00,今天的结束日期时间为{current_date} 23:59:59,今天的日期为{current_date}，
 昨天的开始日期时间为{yesterday} 00:00:00,昨天的结束日期时间为{yesterday} 23:59:59,昨天的日期为{yesterday},
-前天的开始日期时间为{before_yesterday} 00:00:00,前天的结束日期时间为{before_yesterday} 23:59:59,前天的日期为{before_yesterday},
-严格禁止生成聊天记录不存在的数据,
-输出应该是严格按json的格式返回,且不能含有json注释描述,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
-
+前天的开始日期时间为{before_yesterday} 00:00:00,前天的结束日期时间为{before_yesterday} 23:59:59,前天的日期为2023-11-29,
+参数说明：
 {format_instructions}
-
-历史对话沟通记录：
-***
+聊天记录：
 {user_input}
-***
+
+请你结合当前系统背景、参数说明和聊天记录,完成api参数值的提取,严格禁止捏造user聊天未提到参数值，未知参数请返回null,假设参数A为空，不能使用参数{{"A":"未知"}}返回,
+最终结果使用json格式返回,比如{{"a":"12","b":"b"}},
 你的回答:
 """
 
@@ -27,9 +25,9 @@ FUNTION_FORMAT_INSTRUCTIONS = """
 def create_fun_prompt(param: Interface) -> PromptTemplate:
     response_schemas = [ResponseSchema(name=p.name, type=p.type, description=f'{p.title},抽取不到时使用null代替') for
                         p in param.inputParams]
-    output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
-    # 获取响应格式化的指令
-    format_instructions = output_parser.get_format_instructions(only_json=True)
+
+    format_instructions=[f"{row.name} |{row.type} | {row.description},默认值为null,严格禁止捏造user问题无关参数值" for row in response_schemas]
+    format_instructions="\n".join(format_instructions)
     prompt = PromptTemplate(
         input_variables=["user_input", "current_time", "current_date","yesterday","before_yesterday"],
         partial_variables={"format_instructions": format_instructions},

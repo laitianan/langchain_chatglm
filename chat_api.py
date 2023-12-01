@@ -131,7 +131,7 @@ def merge_message(message):
         for chatMessage in message:
             history.append(f"{chatMessage.role}:{chatMessage.content}")
     history="\n".join(history)
-    logging.info(f"具体参数：{history}")
+    # logging.info(f"具体参数：{history}")
     return history
 
 

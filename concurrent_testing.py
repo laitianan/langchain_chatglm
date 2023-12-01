@@ -71,14 +71,14 @@ class Presstest(object):
         self.model=model
         self.base_url=base_url
 
-
+    ##函数参数解析
     def testinterface(self):
         '''压测接口'''
         '''压测接口'''
         global ERROR_NUM
         try:
             print('开始调接口：', datetime.datetime.now().strftime('%Y-%m-%d- %H:%M:%S:%f'))
-            user_inpt="查询366大街站点周三的销量"
+            user_inpt="查询366大街店铺昨天的销量"
             
             
             post_json=json.dumps({"funtion_id":"2120","message":[{"role": "user", "content": user_inpt}]})
@@ -88,14 +88,17 @@ class Presstest(object):
                 print(content)
                 return content
             except :
-                print(r1.content.decode("utf8"))
+                # print(r1.content.decode("utf8"))
+                res=r1.content.decode("utf8")
+                print(f"错误解析：{res}")
 
         except Exception as e:
             print(e)
             ERROR_NUM += 1
         
-
+        ###意图识别
     def testinterface2(self):
+        
         '''压测接口'''
         global ERROR_NUM
         try:
@@ -129,12 +132,13 @@ class Presstest(object):
             昨天的开始日期时间为2023-11-30 00:00:00,昨天的结束日期时间为2023-11-30 23:59:59,昨天的日期为2023-11-30,
             前天的开始日期时间为2023-11-29 00:00:00,前天的结束日期时间为2023-11-29 23:59:59,前天的日期为2023-11-29,
             参数说明：
-            day |STRING | 日期(yyyy-MM-dd),默认值为null
-            shop_name |STRING | 店铺名称,默认值为null
+            day |STRING | 日期(yyyy-MM-dd),默认值为null,严格禁止捏造user问题无关参数值
+            shop_name |STRING | 店铺名称,默认值为null,严格禁止捏造user问题无关参数值
+            businessTypeNames |STRING | 业务类型[零售业务，商场业务],默认值为null,严格禁止捏造user问题无关参数值
             聊天记录：
-            user:查询昨天的销量
+            user:查询明天销量
             
-            请你结合当前系统背景、参数说明和聊天记录,完成api参数值的提取,严格禁止捏造user问题无关参数值，使用json格式返回,比如{"a":"12","b":"b"},
+            请你结合当前系统背景、参数说明和聊天记录,完成api参数值的提取,严格禁止捏造user聊天未提到参数值，未知参数请返回null,假设参数A为空，不能使用参数{"A":"未知"}返回,最终结果使用json格式返回,比如{"a":"12","b":"b"},
             你的回答:
             """
             if isinstance(messages,str):
@@ -154,7 +158,10 @@ class Presstest(object):
             r1 = requests.post(f"{api_base}/chat/completions", headers={'Content-Type': 'application/json'},data=data)
             res = json.loads(r1.content.decode("utf8"))
             content=res["choices"][0]["message"]["content"]
-            print(content)
+            print(f"------------------------------------")
+            
+            print("解析后参数",parse_json_markdown(content))
+            
 
         except Exception as e:
             print(e)
@@ -166,7 +173,7 @@ class Presstest(object):
         i = 0
         while i < ONE_WORKER_NUM:
             i += 1
-            self.testinterface3()
+            self.testinterface()
         time.sleep(LOOP_SLEEP)
 
     def run(self):
@@ -256,15 +263,23 @@ if __name__ == '__main__':
     phone = "150000000"
     password = "123456"
 
-    THREAD_NUM =10  # 并发线程总数
-    ONE_WORKER_NUM = 1  # 每个线程的循环次数
+    THREAD_NUM =1  # 并发线程总数
+    ONE_WORKER_NUM = 10  # 每个线程的循环次数
     LOOP_SLEEP = 0.1  # 每次请求时间间隔(秒)
     ERROR_NUM = 0  # 出错数
     model="Qwen-7B-Chat"
     base_url="127.0.0.1:8084"
     base_url="61.141.232.106:8084"
     obj = Presstest(model,base_url)
-    obj.testinterface3()
+    ##openai 接口
+    # obj.testinterface3()
+    #意图识别
+    # obj.testinterface2()
+    #函数参数解析
+    obj.testinterface()
     # print(content)
     obj.run()
+
+
+a='```json\n{\n    "day": "2023-11-30",\n    "shop_name": null\n}\n```'
 

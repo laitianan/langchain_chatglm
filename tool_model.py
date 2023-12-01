@@ -30,16 +30,15 @@ class Model_Tool(functional_Tool):
         user_input=self.prompt.format(user_input=query,current_time=current_time,current_date=current_date,yesterday=yesterday.__str__(),before_yesterday=before_yesterday.__str__())
         while True:
             i+=1
-            resp = self.llm.predict(user_input)
+            resp_p = self.llm.predict(user_input)
+            resp=resp_p
             logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
             try:
-                if resp.find('None\n')!=-1:
-                    resp = resp.replace('None\n', '"None"\n')
-                if resp.find('NULL')!=-1:
-                    resp = resp.replace('NULL', 'null ')
                 resp=parse_json_markdown(resp)
                 for k, v in resp.items():
-                    if "null" in v.lower() or "none" in v.lower():
+                    if not v:
+                        continue
+                    if "null" in v.lower()  or "未知" in v.lower() or "none" in v.lower():
                         resp[k]=None
                 break
             except :
