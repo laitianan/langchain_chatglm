@@ -3,7 +3,7 @@ from langchain.base_language import BaseLanguageModel
 from langchain.schema import AgentAction, AgentFinish
 from langchain.agents import BaseSingleActionAgent
 from langchain import LLMChain, PromptTemplate
-from utils import  parse_json_markdown
+from utils import parse_json_markdown, get_current_weekday
 import json
 from typing import Any, Dict, List, Literal, Optional, Union
 import datetime
@@ -20,18 +20,27 @@ class Model_Tool(functional_Tool):
     def _call_func(self, query):
         id=self.id
         self.prompt = self.prompt_dict[id]
-        self.get_llm_chain()
         i=0
         current_time = datetime.datetime.now()
-        current_time=str(current_time)[:19]
+        current_time=str(current_time)[:19]+","+get_current_weekday()
         current_date=current_time[:10]
+        today = datetime.date.today()
+        yesterday = today - datetime.timedelta(days=1)
+        before_yesterday=today - datetime.timedelta(days=2)
+        user_input=self.prompt.format(user_input=query,current_time=current_time,current_date=current_date,yesterday=yesterday.__str__(),before_yesterday=before_yesterday.__str__())
         while True:
             i+=1
-            resp = self.llm_chain.predict(user_input=query,current_time=current_time,current_date=current_date)
+            resp = self.llm.predict(user_input)
+            logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
             try:
                 if resp.find('None\n')!=-1:
                     resp = resp.replace('None\n', '"None"\n')
+                if resp.find('NULL')!=-1:
+                    resp = resp.replace('NULL', 'null ')
                 resp=parse_json_markdown(resp)
+                for k, v in resp.items():
+                    if "null" in v.lower() or "none" in v.lower():
+                        resp[k]=None
                 break
             except :
                 pass
@@ -43,7 +52,7 @@ class Model_Tool(functional_Tool):
 
     def get_llm_chain(self):
         if not self.llm_chain:
-            self.llm_chain = LLMChain(llm=self.llm, prompt=self.prompt)
+            self.llm_chain = LLMChain(llm=self.llm)
 
 
 class Unknown_Intention_Model_Tool(functional_Tool):
@@ -58,8 +67,11 @@ class Unknown_Intention_Model_Tool(functional_Tool):
             query=f"system:当前你是幸福西饼AI客服助手，请你尽量使用中文回答用户的问题\n{query}"
         else:
             query = f"system:当前你是幸福西饼AI客服助手，请你尽量使用中文回答用户的问题\nuser:{query}"
-        resp = self.llm.predict(query)
-        return "",resp
+
+
+        response = self.llm.predict(query)
+        logging.info(f"<chat>\n\nquery:\t{query}\n<!-- *** -->\nresponse:\n{response}\n\n</chat>")
+        return "",response
 
     def get_llm_chain(self):
         pass

@@ -23,6 +23,8 @@ from fastapi import  Request
 from fastapi.responses import JSONResponse
 from functools import wraps
 import logging
+
+from qwen_generation_utils import make_context, decode_tokens, get_stop_words_ids
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
@@ -144,6 +146,10 @@ class ChatCompletionRequest(BaseModel):
     stream: Optional[bool] = False
     stop: Optional[List[str]] = None
 
+class BatchChatCompletionRequest(BaseModel):
+    messages: List[str]
+
+
 
 class ChatCompletionResponseChoice(BaseModel):
     index: int
@@ -163,6 +169,10 @@ class ChatCompletionResponse(BaseModel):
     choices: List[
         Union[ChatCompletionResponseChoice, ChatCompletionResponseStreamChoice]
     ]
+    created: Optional[int] = Field(default_factory=lambda: int(time.time()))
+
+class BatchChatCompletionResponse(BaseModel):
+    content:List[str]
     created: Optional[int] = Field(default_factory=lambda: int(time.time()))
 
 
@@ -591,6 +601,41 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = "text2
     ).dict(exclude_none=True)
 
 
+# @app.post("/v1/batch_chat/completions", response_model=BatchChatCompletionResponse)
+async def create_batch_chat_completion(request: BatchChatCompletionRequest):
+    all_raw_text = request.messages
+    batch_raw_text = []
+    for q in all_raw_text:
+        raw_text, _ = make_context(
+            tokenizer,
+            q,
+            system="You are a helpful assistant.",
+            max_window_size=model.generation_config.max_window_size,
+            chat_format=model.generation_config.chat_format,
+        )
+        batch_raw_text.append(raw_text)
+
+    batch_input_ids = tokenizer(batch_raw_text, padding='longest')
+    batch_input_ids = torch.LongTensor(batch_input_ids['input_ids']).to(model.device)
+    batch_out_ids = model.generate(
+        batch_input_ids,
+        return_dict_in_generate=False,
+        generation_config=model.generation_config
+    )
+    padding_lens = [batch_input_ids[i].eq(tokenizer.pad_token_id).sum().item() for i in range(batch_input_ids.size(0))]
+    batch_response = [
+        decode_tokens(
+            batch_out_ids[i][padding_lens[i]:],
+            tokenizer,
+            raw_text_len=len(batch_raw_text[i]),
+            context_length=(batch_input_ids[i].size(0) - padding_lens[i]),
+            chat_format="chatml",
+            verbose=False,
+            errors='replace'
+        ) for i in range(len(all_raw_text))
+    ]
+    return BatchChatCompletionResponse(content=batch_response)
+
 
 def _get_args():
     parser = ArgumentParser()
@@ -598,10 +643,10 @@ def _get_args():
         "-c",
         "--checkpoint-path",
         type=str,
-        default="/data/laitianan/qwen-14b-4bit",  #/home/ubuntu/.cache/modelscope/hub/qwen/Qwen-14B-Chat
-        # default="/home/ubuntu/.cache/modelscope/hub/qwen/Qwen-14B-Chat",
+        default="/data/laitianan/qwen-14b-4bit",
         help="Checkpoint name or path, default to %(default)r",
     )
+
 
     parser.add_argument(
         "--embeddings-checkpoint-path",
@@ -637,6 +682,10 @@ if __name__ == "__main__":
         args.checkpoint_path,
         trust_remote_code=True,
         resume_download=True,
+        # pad_token='<|extra_0|>',
+        # eos_token='<|endoftext|>',
+        # padding_side='left',
+        # use_flash_attn=True
     )
 
     if args.cpu_only:
@@ -649,8 +698,7 @@ if __name__ == "__main__":
         device_map=device_map,
         trust_remote_code=True,
         resume_download=True,
-        # bf16=True,
-
+        use_flash_attn=True
     ).eval()
 
     model.generation_config = GenerationConfig.from_pretrained(
@@ -663,3 +711,6 @@ if __name__ == "__main__":
 
 
     uvicorn.run(app, host=args.server_name, port=args.server_port, workers=1)
+
+
+    # "disable_exllama":true

@@ -48,27 +48,33 @@ class IntentAgent(BaseSingleActionAgent):
 
     # 根据提示(prompt)选择工具
     def choose_tool(self, query) -> List[str]:
-        self.get_llm_chain()
+        # self.get_llm_chain()
         self.merge_summary()
         res=[]
-        resp = self.llm_chain1.predict(intents=self.tool_names, intention_summary=self.summary, user_input=query)
-        for name in self.tool_names:
-            if name in resp:
-                res.append(name)
-                break
+        userinput=self.prompt1.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
+        resp = self.llm.predict(userinput)
+
+        prase_resp=parse_json_markdown_for_list(resp)
+
+        if isinstance(prase_resp,list):
+            res=prase_resp
+        else:
+            for name in self.tool_names:
+                if name in resp:
+                    res.append(name)
+                    break
         res.append(self.default_intent_name)
         return res
 
     async def choose_tools(self, query) -> List[Doc]:
-        self.get_llm_chain(False)
         self.merge_summary()
-        resp = self.llm_chain2.predict(intents=self.tool_names, intention_summary=self.summary, user_input=query)
-        # logging.info(f"解析前：{resp}-------------------------------------------------")
+        user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
+        resp = self.llm.predict(user_input)
+        logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
         resp=parse_json_markdown_for_list(resp)
-        # logging.info(f"解析后：{resp}-------------------------------------------------")
         docs=set()
         for i,name in enumerate(resp) :
-            if name !=self.default_intent_name and name in self.tool_names:
+            if name !=self.default_intent_name and name in self.tool_names :
                 docs.add(Doc(self.name_id_map[name],name,100.0-i-1,"AI"))
 
         return list(docs)

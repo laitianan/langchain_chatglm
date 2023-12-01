@@ -39,8 +39,8 @@ class Query_Search(object):
     def load(self,docs:List[Doc]):
         for doc in docs:
             for word in jieba.lcut(doc.name) :
-                # if  word not in ["查询"]:
-                self.word_docs[word].add(doc)
+                if  word not in ["查询"]:
+                    self.word_docs[word].add(doc)
 
 
     def __sim_rank__(self,query)->List[Doc]:

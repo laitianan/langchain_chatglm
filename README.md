@@ -1,1 +1,1 @@
-# langchain_qwenchat-7b  
+# langchain_internlm-chat-7b  

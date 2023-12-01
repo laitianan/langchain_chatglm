@@ -1,35 +1,24 @@
 
 import time
-
+import asyncio
 import uvicorn
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from watchdog.observers import Observer
-
-from global_config import ChatConfig
-from prompt_helper import  init_all_fun_prompt
-from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Literal, Optional, Union
-import  logging
-import pickle
-import os
 from functools import wraps
 from langchain.agents import AgentExecutor
 from intentAgent_model import IntentAgent
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
-from MyOpenAI import myOpenAi, call_qwen
+from MyOpenAI import myOpenAi, call_qwen_funtion
 from prompt_helper import init_all_fun_prompt
 from utils import load_interface_template,save_interface_template
 import time
 import logging
-
-from watch import FileEventHandler
-
 logger = logging.getLogger()
+
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-fh = logging.FileHandler(filename='./server.log')
+fh = logging.FileHandler("./chat_api.log",encoding="utf-8",mode="a")
 formatter = logging.Formatter(
     "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
 )
@@ -39,7 +28,6 @@ logger.addHandler(ch)  # 将日志输出至屏幕
 logger.addHandler(fh)  # 将日志输出至文件
 
 app = FastAPI()
-saveinterfacepath="./data/"
 from api_protocol import  (
 InitInterfaceResponse,
 InitInterfaceRequest,
@@ -82,11 +70,11 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
     async def wrapper(*args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
         try:
             start_time = time.time()  # 程序开始时间
-            logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
+            # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
             end_time = time.time()  # 程序结束时间
-            run_time = end_time - start_time  # 程序的运行时间，单位为秒
-            logging.info(f"接口：{func.__name__}，运行时间：{run_time}，返回值：{res}")
+            # run_time = end_time - start_time  # 程序的运行时间，单位为秒
+            # logging.info(f"接口：{func.__name__}，运行时间：{run_time}，返回值：{res}")
         except  Exception as e:
             info=str(e)
             logging.info(f"接口：{func.__name__}，接口异常错误提示：{info}")
@@ -96,32 +84,21 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
     return wrapper
 
 
+
+from config import api_base, saveinterfacepath
+
 @app.post("/chat/completions", response_model=ChatResponse)
 @raise_UnicornException
 async def chat(request: ChatCompletionRequest):
-    # llm=openai_model()
-    # resp=llm.predict(request.message)
-    response=call_qwen(request.message)
+    response=call_qwen_funtion(request.message)
     resp=response.choices[0].message.content
-
     return ChatResponse(status=200,message=resp)
 
-
-# @app.post("/delete_all_funtion_template/completions", response_model=DeleteResponse)
-# @raise_UnicornException
-async def del_temp():
-    global  chatconfig
-    path = os.path.join(saveinterfacepath, "interface_template.pkl")
-    if os.path.exists(path):
-        os.remove(path)
-    chatconfig.init_run()
-    return DeleteResponse(status=200,message="删除所有模板成功")
 
 @app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
 @raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
-    global chatconfig
-    initparam = chatconfig.initparam
+    global  initparam
     if initparam  :
         interface_fun = {param.id:param for param in initparam.params}
         for param in request.params:
@@ -131,8 +108,8 @@ async def init_funtion_template(request: InitInterfaceRequest):
         initparam.params=list(interface_fun.values())
     else:
         initparam=request
-    save_interface_template(initparam, path=saveinterfacepath)
-    chatconfig.init_run()
+    save_interface_template(initparam, saveinterfacepath)
+    init_run()
     res=InitInterfaceResponse(status=200,message="添加模板成功")
     return res
 
@@ -161,9 +138,7 @@ def merge_message(message):
 @app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
 @raise_UnicornException
 async def chat_funtion_intention(request: FunCompletionRequest):
-    global chatconfig
-    agent_exec,toos_dict = chatconfig.agent_exec, chatconfig.toos_dict
-
+    global  agent_exec,toos_dict
     if request.funtion_id is None or request.funtion_id=='':
         query=merge_message(request.message)
         fun_id,message=agent_exec.run(query)
@@ -176,28 +151,14 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
 
 
-# ,
-# Funtion
-import asyncio
-
-
-# async def f(request: FunCompletionRequest):
-#     global search, agent_exec
-#     mess=merge_message(request.message)
-#     query=request.message[-1].content
-#     docs, infos = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.choose_tools(mess))
-
 
 @app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
 @raise_UnicornException
 async def chat_intention_search(request: ChatCompletionRequest):
-    global  chatconfig
+    global  search,agent_exec
 
-    search, agent_exec=chatconfig.search,chatconfig.agent_exec
     mess=merge_message(request.message)
     query=request.message[-1].content
-    # docs1=await search.cal_similarity_rank(query)
-    # docs2=await agent_exec.agent.choose_tools(mess)
     docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
     d2=[]
     for e in docs1:
@@ -205,23 +166,41 @@ async def chat_intention_search(request: ChatCompletionRequest):
             d2.append(e)
     docs2.extend(d2)
     funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs2]
-
-
     return Intention_Search_Response(status=200,funtions=funtions)
 
-chatconfig=ChatConfig()
-agent_exec,toos_dict,llm,initparam,search=chatconfig.get_init()
+
+def init_run():
+    global  agent_exec,toos_dict,llm,initparam,search
+
+    initparam = load_interface_template(saveinterfacepath)
+    if not initparam:
+        return
+    from search_intention import  Doc,Query_Search
+    search = Query_Search()
+    llm = myOpenAi(temperature=0.8,max_tokens=2000)
+    toos_dict = {}
+    docs=[]
+    prompt_dict=init_all_fun_prompt(initparam)
+    for param in initparam.params  :
+        if param.usableFlag:
+            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict)
+            docs.append(Doc(funtion_id=param.id, name=param.name))
+    search.load(docs)
+    tools=list(toos_dict.values())
+    unknowntool=Unknown_Intention_Model_Tool(llm=llm)
+    tools.append(unknowntool)
+    # # 选择工具
+    agent = IntentAgent(tools=tools, llm=llm,default_intent_name=unknowntool.name)
+    agent_exec = AgentExecutor.from_agent_and_tools(agent=agent,  tools=tools, verbose=False,max_iterations=1)
+    return agent_exec,toos_dict,llm,initparam,search
+
+agent_exec,toos_dict,llm,initparam,search=init_run()
 
 if __name__ == "__main__":
 
-    # agent_exec,toos_dict,llm,initparam,search=None,None,None,None,None
-    # init_run()
 
-    event_handler = FileEventHandler()
-    observer = Observer()
-    observer.schedule(event_handler, chatconfig.saveinterfacepath, recursive=True)
-    observer.start()
-    uvicorn.run("chat_api:app", host='0.0.0.0', port=8084, workers=2)
+    uvicorn.run("chat_api:app", host='0.0.0.0', port=8084, workers=16)
+
 
 
 
