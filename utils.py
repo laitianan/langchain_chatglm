@@ -64,23 +64,18 @@ def parse_json_markdown(json_string: str) -> dict:
             return json.loads(json_string)
         except:
             pass
-
     match = re.search(r"```(json)?(.*)```", json_string, re.DOTALL)
     if match is None:
-        match = re.search(r"{.*}", json_string, re.DOTALL)
-        if match is None:
+        match = re.findall(r"{.*?}", json_string, re.DOTALL)
+        if len(match)==0:
             json_str = json_string
         else:
-            json_str = match.group(0)
-            # print("8"*20,json_str)
+            json_str = match[0]
     else:
         json_str = match.group(2)
-        # print("9" * 20,json_str)
-
     json_str = json_str.strip()
     try:
         try:
-
             return literal_eval(json_str)
         except:
             return json.loads(json_str)
@@ -104,3 +99,29 @@ def get_current_weekday():
     week_map={0:"周一",1:"周二",2:"周三",3:"周四",4:"周五",5:"周六",6:"周日"}
 
     return f"今日星期属于{week_map[current_weekday]}"
+
+
+def validate_date_string(date_string):
+    pattern = r'^\d{4}[-/年]\d{2}[-/月]\d{2}'  # 匹配YYYY-MM-DD格式的日期字符串
+    if re.match(pattern, date_string):
+        return True
+    else:
+        return False
+
+
+def get_num(string):
+    pattern = r'^\d{5,}'
+    m = re.findall(pattern, string, re.DOTALL)
+    if len(m):
+        return m[0]
+    else:
+        return ""
+
+def is_xxCH(v_string,query):
+    if v_string=="":
+        return True
+    m=re.findall(r"[a-zA-Z]{2,}", v_string)
+    if len(m) and m[0] not in query:
+        return True
+    else:
+        return False

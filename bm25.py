@@ -6,6 +6,7 @@
 @time:2022/04/16
 @description:
 """
+import collections
 import math
 import os
 from typing import List
@@ -14,27 +15,10 @@ import jieba
 import pickle
 import logging
 
+from doc import Doc
+
 jieba.setLogLevel(log_level=logging.INFO)
-class Doc():
 
-    def __init__(self,funtion_id,name,score=0.0,fro="SEARCH"):
-
-        self.funtion_id=funtion_id
-        self.name=name
-        self.score=score
-        self.fro=fro
-    def __eq__(self, other):
-        h1 =self.__str__()
-        h2 = other.__str__()
-        return h1 == h2
-
-    def __hash__(self):
-        h=self.__str__()
-        return hash(h)  # 如果直接写为hash(self)则会导致递归
-
-    def __str__(self):
-        h = f"name:{self.name},funtion_id:{self.funtion_id}"
-        return h
 
 class BM25Param(object):
     def __init__(self, f, df, idf, length, avg_length, docs_list, line_length_list,key_docindex,k1=1.5, k2=1.0,b=0.75):
@@ -68,8 +52,6 @@ class BM25Param(object):
 
 
 class BM25(object):
-    _param_pkl = "data/param.pkl"
-    _docs_path = "data/data.txt"
     _stop_words_path = "data/stop_words.txt"
     _stop_words = []
 
@@ -79,7 +61,7 @@ class BM25(object):
 
     def _load_stop_words(self):
         if not os.path.exists(self._stop_words_path):
-            raise Exception(f"system stop words: {self._stop_words_path} not found")
+            ValueError(f"system stop words: {self._stop_words_path} not found")
         stop_words = []
         with open(self._stop_words_path, 'r', encoding='utf8') as reader:
             for line in reader:
@@ -100,7 +82,7 @@ class BM25(object):
                 line=doc.name
                 if not line:
                     continue
-                words = [word for word in jieba.lcut(line) if word and word not in self._stop_words]
+                words = [word for word in jieba.lcut_for_search(line) if word and word not in self._stop_words]
                 line_length_list.append(len(words))
                 docs_list.append(doc)
                 words_count += len(words)
@@ -112,7 +94,6 @@ class BM25(object):
                     df[word] = df.get(word, 0) + 1
             for word, num in df.items():
                 idf[word] = math.log(length - num + 0.5) - math.log(num + 0.5)
-            import collections
 
             key_docindex=collections.defaultdict(set)
             for i,doc in enumerate(f):
@@ -124,6 +105,7 @@ class BM25(object):
 
     def _load_param(self):
         self._stop_words = self._load_stop_words()
+        self._stop_words.append("查询")
         param = self._build_param(self.docs)
         return param
 
@@ -146,7 +128,7 @@ class BM25(object):
         :return: [(doc, score), ..]
         """
         key_docindex=self.param.key_docindex
-        words = [word for word in jieba.lcut(query) if word and word not in self._stop_words]
+        words = [word for word in jieba.lcut_for_search(query) if word and word not in self._stop_words]
         indexs=set()
         for word in words:
             indexs=indexs.union(key_docindex[word])
@@ -160,7 +142,7 @@ class BM25(object):
             score_list.append(doc)
         return score_list
 
-    def cal_similarity_rank(self, query: str)->List[Doc]:
+    def __sim_rank__(self, query: str)->List[Doc]:
         """
         相似度计算，排序
         :param query: 待查询结果
@@ -168,13 +150,32 @@ class BM25(object):
         """
         result = self.cal_similarity(query)
         result.sort(key=lambda x: -1*x.score)
-        return result
 
+        res=[e for e in result if e.score>=0]
 
+        if len(res):
+            high_score=res[0].score
+            E=10E-8
+            res=[e for e in res if (e.score+E)/(high_score+E)>=0.8 and (e.score+E)/(high_score+E)<=1]
+
+        res=res or result
+        log=",".join([f"{e.name}/{e.score}" for e in res])
+        logging.info(f"query:{query},\tresult:{log}")
+        # log = ",".join([f"{e.name}/{e.score}" for e in result])
+        # logging.info(f"query:{query},\tresult--all:{log}")
+        return res or result
+
+    async def cal_similarity_rank(self,query)->List[Doc]:
+
+        return self.__sim_rank__(query)
+
+    def calc_similarity_rank(self, query) -> List[Doc]:
+
+        return self.__sim_rank__(query)
 
 if __name__ == '__main__':
     # bm25 = BM25()
-    query_content = "业绩"
+    query_content = "查询"
     docs = ["门店当天实时业绩查询", "门店按天查询业绩",
                           "站点当天实时业绩查询", "站点按天查询业绩","查询订单详情", "查询订单配送状态", "查询订单金额状态"]
 
@@ -187,6 +188,6 @@ if __name__ == '__main__':
     # for i,(line, score) in enumerate(result):
     #     print(i,line, score)
     # print("**"*20)
-    result = bm25.cal_similarity_rank(query_content)
+    result = bm25.calc_similarity_rank(query_content)
     for i,line in enumerate(result):
         print(i,line.funtion_id,line.name,line.score)

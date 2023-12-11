@@ -3,7 +3,7 @@ import requests
 import json
 
 base_url="127.0.0.1:8084"
-base_url="61.141.232.106:8084"
+# base_url="61.141.232.106:8084"
 
 #初始化接口模板
 post_json = json.dumps({"params" :[
@@ -21,6 +21,12 @@ post_json = json.dumps({"params" :[
             "type": "STRING",
             "required": True,
             "title": "日期(yyyy-MM-dd)"
+          },
+          {
+            "name": "businessTypeNames",
+            "type": "STRING",
+            "required": True,
+            "title": "业务类型[新零售业务,商场业务]"
           }
         ]
       },

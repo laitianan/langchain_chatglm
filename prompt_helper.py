@@ -10,14 +10,13 @@ FUNTION_FORMAT_INSTRUCTIONS = """
 当前系统背景：
 当前时间{current_time},今天的开始日期时间为{current_date} 00:00:00,今天的结束日期时间为{current_date} 23:59:59,今天的日期为{current_date}，
 昨天的开始日期时间为{yesterday} 00:00:00,昨天的结束日期时间为{yesterday} 23:59:59,昨天的日期为{yesterday},
-前天的开始日期时间为{before_yesterday} 00:00:00,前天的结束日期时间为{before_yesterday} 23:59:59,前天的日期为2023-11-29,
-参数说明：
+前天的开始日期时间为{before_yesterday} 00:00:00,前天的结束日期时间为{before_yesterday} 23:59:59,前天的日期为{before_yesterday},
+api参数说明：
 {format_instructions}
 聊天记录：
 {user_input}
 
-请你结合当前系统背景、参数说明和聊天记录,完成api参数值的提取,严格禁止捏造user聊天未提到参数值，未知参数请返回null,假设参数A为空，不能使用参数{{"A":"未知"}}返回,
-最终结果使用json格式返回,比如{{"a":"12","b":"b"}},
+请你结合当前系统背景、参数说明和聊天记录,完成user表达的api参数值的提取,其中时间相关字段根据系统背景推理，而其他字段不能根据时间推理比如订单号,严格禁止捏造user聊天未提到参数值,最终结果使用json格式返回参数说明的所需字段名称跟值,比如{{"a":"a","b":"b"}},未知参数请返回null,且不能构建新的字段名称,
 你的回答:
 """
 

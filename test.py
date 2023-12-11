@@ -17,18 +17,34 @@ openai.api_key = "none"
 
 
 def call_qwen(messages, functions=None):
-    # print(f"input\t{messages}")
+    print(messages)
     if functions:
         response = openai.ChatCompletion.create(
-            model="Qwen", messages=messages, functions=functions
+            model="Qwen-7B-Chat", messages=messages, functions=functions
         )
     else:
-        response = openai.ChatCompletion.create(model="Qwen", messages=messages)
-    # print(response)
-    # print("output\t"+response.choices[0].message.get("content",""))
+        response = openai.ChatCompletion.create(model="Qwen-7B-Chat", messages=messages)
+    print(response)
+    print(response.choices[0].message.content)
     return response
 
 
+def test_1():
+    messages = [{"role": "user", "content": "你好"}]
+    call_qwen(messages)
+    messages.append({"role": "assistant", "content": "你好！很高兴为你提供帮助。"})
+
+    messages.append({"role": "user", "content": "给我讲一个年轻人奋斗创业最终取得成功的故事。故事只能有一句话。"})
+    call_qwen(messages)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "故事的主人公叫李明，他来自一个普通的家庭，父母都是普通的工人。李明想要成为一名成功的企业家。……",
+        }
+    )
+
+    messages.append({"role": "user", "content": "给这个故事起一个标题"})
+    call_qwen(messages)
 
 
 def test_2():
@@ -48,20 +64,14 @@ def test_2():
             ],
         },
         {
-            "name_for_human": "天气预报查询",
-            "name_for_model": "query_weather",
-            "description_for_model": "根据用户输入的时间与城市地址，返回用户指定在特定日期特定城市天气预报"
+            "name_for_human": "文生图",
+            "name_for_model": "image_gen",
+            "description_for_model": "文生图是一个AI绘画（图像生成）服务，输入文本描述，返回根据文本作画得到的图片的URL。"
             + " Format the arguments as a JSON object.",
             "parameters": [
                 {
-                    "name": "datetime",
-                    "description": "日期时间",
-                    "required": True,
-                    "schema": {"type": "datetime"},
-                },
-                {
-                    "name": "city",
-                    "description": "城市",
+                    "name": "prompt",
+                    "description": "英文关键词，描述了希望图像具有什么内容",
                     "required": True,
                     "schema": {"type": "string"},
                 }
@@ -69,83 +79,158 @@ def test_2():
         },
     ]
 
-    def get_time():
-        import datetime
-        current_time = datetime.datetime.now()
-        current_time = str(current_time)[:19]
-        return current_time
+    messages = [{"role": "user", "content": "你好"}]
+    call_qwen(messages, functions)
+    messages.append(
+        {"role": "assistant", "content": "你好！很高兴见到你。有什么我可以帮忙的吗？"},
+    )
 
-    messages = [{"role": "system", "content":f"当前北京时间是：{get_time()}"}]
-    while True:
-        user_input=input("请你输入你的问题：")
-        if user_input=="clear":
-            messages = [{"role": "system", "content":f"当前北京时间是：{get_time()}"}]
-            continue
-        messages.append({"role": "user", "content": user_input})
-        resp=call_qwen(messages, functions)
-        # resp=json.loads(resp, ensure_ascii=False)
-        if resp.choices[0].finish_reason=="stop":
-            print("9999999999999999999999999999999999999999999999999")
-            messages.append(
-                {"role": "assistant", "content":resp.choices[0].message.content},
-            )
-        else:
-            # print(resp.choices[0].message)
-            # print(type(resp.choices[0].message.to_dict()))
-            import json
+    messages.append({"role": "user", "content": "谁是周杰伦"})
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "Thought: 我应该使用Google搜索查找相关信息。",
+            "function_call": {
+                "name": "google_search",
+                "arguments": '{"search_query": "周杰伦"}',
+            },
+        }
+    )
 
-            data = resp.choices[0].message.to_dict()
-            json_data = json.dumps(data, ensure_ascii=False)
-            print(json_data)
-            print("8"*100)
-            json_data=json.loads(json_data)
-            messages.append(
-                json_data
-            )
+    messages.append(
+        {
+            "role": "function",
+            "name": "google_search",
+            "content": "Jay Chou is a Taiwanese singer.",
+        }
+    )
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "周杰伦（Jay Chou）是一位来自台湾的歌手。",
+        },
+    )
 
-            if resp.choices[0].message.function_call["name"]=="query_weather":
-                param=resp.choices[0].message.function_call["arguments"]
-                param = json.loads(param)
-                print(param)
-                info=""
-                if not param.get("datetime",None):
-                    info+="不知道用户查询日期，"
-                if not param.get("city",None):
-                    info+="不知道用户查询城市名称"
-                city=param.get("city",None)
-                datetime=param.get("datetime",None)
-                import numpy as np
-                weathers=["晴朗","小雨","大暴雨","小雪","雾霭"]
-                weather = np.random.choice(weathers, 1)[0]
-                temps=["适中","20米","100米","好"]
-                temp = np.random.choice(temps, 1)[0]
-                info=info or f"城市：{city},日期时间：{datetime},当天的天气预报为气温{np.random.randint(-10,37,1)[0]}度，天气{weather}，能见度{temp}"
-                # print(info)
-                messages.append(
-                    {
-                        "role": "function",
-                        "name": "query_weather",
-                    "content":info})
-            else:
+    messages.append({"role": "user", "content": "他老婆是谁"})
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "Thought: 我应该使用Google搜索查找相关信息。",
+            "function_call": {
+                "name": "google_search",
+                "arguments": '{"search_query": "周杰伦 老婆"}',
+            },
+        }
+    )
 
-                messages.append(
-                    {
-                        "role": "function",
-                        "name": "google_search",
-                        "content": """周杰伦（Jay Chou），1979年1月18日出生于台湾省新北市，祖籍福建省泉州市永春县，中国台湾流行乐男歌手、音乐人、演员、导演、编剧，毕业于淡江中学。
-    2000年发行个人首张专辑《Jay》 [303] 。2001年发行的专辑《范特西》奠定其融合中西方音乐的风格。2002年举行“The One”世界巡回演唱会 [1] 。2003年成为美国《时代周刊》封面人物 [2] 。2004年凭借专辑《叶惠美》获得第15届台湾金曲奖最佳流行音乐演唱专辑奖 [23] 。2005年凭借动作片《头文字D》获得金马奖、金像奖最佳新人奖 [3] 。2006年起连续三年获得世界音乐大奖中国区最畅销艺人奖 [4] 。2007年自编自导的文艺片《不能说的秘密》获得金马奖年度台湾杰出电影奖 [5] 。2008年凭借歌曲《青花瓷》获得第19届台湾金曲奖最佳年度歌曲奖、最佳作曲人奖 [307] 。
-    2009年入选美国CNN评出的“25位亚洲最具影响力人物” [6] ；同年凭借专辑《魔杰座》获得第20届台湾金曲奖最佳国语男歌手奖 [7] 。2010年入选美国《Fast Company》评出的“全球百大创意人物”。2011年凭借专辑《跨时代》获得第22届台湾金曲奖最佳国语男歌手奖、最佳国语专辑奖 [309] 。2012年登上福布斯中国名人榜榜首 [8] 。2014年发行个人首张数字专辑《哎呦，不错哦》 [310] 。2023年凭借专辑《最伟大的作品》获得IFPI全球畅销专辑榜冠军 [301] 。
-    周杰伦热心公益慈善 [325] ，还涉足商业、设计等领域 [324] ，多次向中国内地灾区捐款捐物。2007年成立杰威尔有限公司 [10] 。2008年捐款援建希望小学 [12] 。2011年担任华硕笔电设计师 [11] 。2014年担任中国禁毒宣传形象大使 [183] 。""",
-                    }
-                )
-            resp = call_qwen(messages, functions)
-            messages.pop(-1)
-            messages.pop(-1)
-            messages.append(
-                {"role": "assistant", "content": resp.choices[0].message.content},
-            )
-        content=resp.choices[0].message.get("content", "")
-        print(f"AI回复:{content}")
+    messages.append(
+        {"role": "function", "name": "google_search", "content": "Hannah Quinlivan"}
+    )
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "周杰伦的老婆是Hannah Quinlivan。",
+        },
+    )
+
+    messages.append({"role": "user", "content": "给我画个可爱的小猫吧，最好是黑猫"})
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "Thought: 我应该使用文生图API来生成一张可爱的小猫图片。",
+            "function_call": {
+                "name": "image_gen",
+                "arguments": '{"prompt": "cute black cat"}',
+            },
+        }
+    )
+
+    messages.append(
+        {
+            "role": "function",
+            "name": "image_gen",
+            "content": '{"image_url": "https://image.pollinations.ai/prompt/cute%20black%20cat"}',
+        }
+    )
+    call_qwen(messages, functions)
+
+
+def test_3():
+    functions = [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                },
+                "required": ["location"],
+            },
+        }
+    ]
+
+    messages = [
+        {
+            "role": "user",
+            # Note: The current version of Qwen-7B-Chat (as of 2023.08) performs okay with Chinese tool-use prompts,
+            # but performs terribly when it comes to English tool-use prompts, due to a mistake in data collecting.
+            "content": "波士顿天气如何？",
+        }
+    ]
+    call_qwen(messages, functions)
+    messages.append(
+        {
+            "role": "assistant",
+            "content": None,
+            "function_call": {
+                "name": "get_current_weather",
+                "arguments": '{"location": "Boston, MA"}',
+            },
+        },
+    )
+
+    messages.append(
+        {
+            "role": "function",
+            "name": "get_current_weather",
+            "content": '{"temperature": "22", "unit": "celsius", "description": "Sunny"}',
+        }
+    )
+    call_qwen(messages, functions)
+
+
+def test_4():
+    from langchain.chat_models import ChatOpenAI
+    from langchain.agents import load_tools, initialize_agent, AgentType
+
+    llm = ChatOpenAI(
+        model_name="Qwen",
+        openai_api_base="http://localhost:8000/v1",
+        openai_api_key="EMPTY",
+        streaming=False,
+    )
+    tools = load_tools(
+        ["arxiv"],
+    )
+    agent_chain = initialize_agent(
+        tools,
+        llm,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True,
+    )
+    # TODO: The performance is okay with Chinese prompts, but not so good when it comes to English.
+    agent_chain.run("查一下论文 1605.08386 的信息")
+
 
 if __name__ == "__main__":
     # print("### Test Case 1 - No Function Calling (普通问答、无函数调用) ###")

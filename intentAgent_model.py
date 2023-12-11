@@ -52,12 +52,24 @@ class IntentAgent(BaseSingleActionAgent):
         self.merge_summary()
         res=[]
         userinput=self.prompt1.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
-        resp = self.llm.predict(userinput)
 
-        prase_resp=parse_json_markdown_for_list(resp)
 
-        if isinstance(prase_resp,list):
-            res=prase_resp
+        name=""
+        for i in range(3):
+            try:
+                resp = self.llm.predict(userinput)
+                logging.info(f"<chat>\n\nquery:\t{userinput}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+                prase_resp = parse_json_markdown(resp)
+                name=prase_resp["intention_name"]
+                break
+            except:
+                pass
+
+        if name and name!="":
+            if isinstance(name,list):
+                res=name
+            else:
+                res=[name]
         else:
             for name in self.tool_names:
                 if name in resp:
@@ -69,9 +81,15 @@ class IntentAgent(BaseSingleActionAgent):
     async def choose_tools(self, query) -> List[Doc]:
         self.merge_summary()
         user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
-        resp = self.llm.predict(user_input)
-        logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
-        resp=parse_json_markdown_for_list(resp)
+        resp=[]
+        for i in range(3):
+            try:
+                resp = self.llm.predict(user_input)
+                logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+                resp=parse_json_markdown_for_list(resp)
+                break
+            except:
+                resp=[]
         docs=set()
         for i,name in enumerate(resp) :
             if name !=self.default_intent_name and name in self.tool_names :

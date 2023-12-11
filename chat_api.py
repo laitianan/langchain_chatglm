@@ -1,12 +1,17 @@
 
 import time
 import asyncio
+from logging.handlers import RotatingFileHandler
+
 import uvicorn
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from functools import wraps
 from langchain.agents import AgentExecutor
+
+from bm25 import BM25
+from doc import Doc
 from intentAgent_model import IntentAgent
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
 from MyOpenAI import myOpenAi, call_qwen_funtion
@@ -17,15 +22,13 @@ import logging
 logger = logging.getLogger()
 
 logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-fh = logging.FileHandler("./chat_api.log",encoding="utf-8",mode="a")
 formatter = logging.Formatter(
     "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
 )
-ch.setFormatter(formatter)
-fh.setFormatter(formatter)
-logger.addHandler(ch)  # 将日志输出至屏幕
-logger.addHandler(fh)  # 将日志输出至文件
+file_handler = RotatingFileHandler("./data/chat_api.log", 'a', 10*1024*1024, 360,encoding="utf-8")
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 app = FastAPI()
 from api_protocol import  (
@@ -73,8 +76,8 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
             # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
             end_time = time.time()  # 程序结束时间
-            # run_time = end_time - start_time  # 程序的运行时间，单位为秒
-            # logging.info(f"接口：{func.__name__}，运行时间：{run_time}，返回值：{res}")
+            run_time = end_time - start_time  # 程序的运行时间，单位为秒
+            logging.info(f"接口：{func.__name__},前端参数为：{args} {kwargs},运行时间：{run_time},返回值：{res}")
         except  Exception as e:
             info=str(e)
             logging.info(f"接口：{func.__name__}，接口异常错误提示：{info}")
@@ -160,12 +163,16 @@ async def chat_intention_search(request: ChatCompletionRequest):
     mess=merge_message(request.message)
     query=request.message[-1].content
     docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
-    d2=[]
-    for e in docs1:
-        if e not in docs2:
-            d2.append(e)
-    docs2.extend(d2)
-    funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs2]
+    docs1, docs2=set(docs1),set(docs2)
+    d=docs2.intersection(docs1)
+
+    docs2=docs2-d
+    docs1=docs1-d
+    d=list(d)
+    for e in d:
+        e.fro="AI"
+    docs=list(d)+list(docs2)+list(docs1)
+    funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs]
     return Intention_Search_Response(status=200,funtions=funtions)
 
 
@@ -175,17 +182,20 @@ def init_run():
     initparam = load_interface_template(saveinterfacepath)
     if not initparam:
         return
-    from search_intention import  Doc,Query_Search
-    search = Query_Search()
+
+
     llm = myOpenAi(temperature=0.8,max_tokens=2000)
     toos_dict = {}
     docs=[]
     prompt_dict=init_all_fun_prompt(initparam)
     for param in initparam.params  :
         if param.usableFlag:
-            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict)
+            sub_param_type={e.name:e.type for e in param.inputParams}
+            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict,sub_param_type=sub_param_type)
             docs.append(Doc(funtion_id=param.id, name=param.name))
-    search.load(docs)
+    # search = Query_Search(docs)
+    search =BM25(docs)
+
     tools=list(toos_dict.values())
     unknowntool=Unknown_Intention_Model_Tool(llm=llm)
     tools.append(unknowntool)
@@ -199,20 +209,7 @@ agent_exec,toos_dict,llm,initparam,search=init_run()
 if __name__ == "__main__":
 
 
-    uvicorn.run("chat_api:app", host='0.0.0.0', port=8084, workers=16)
+    uvicorn.run("chat_api:app", host='0.0.0.0', port=8084, workers=1)
 
 
 
-
-
-""":param
-import requests
-import json 
-
-post_json = json.dumps({"params":[{"name":"test","id":"999","functionDesc":"接口描述","usableFlag":1,"inputParams":[{"name":"name","type":"type","required":1,"title":"test_info"}]}]})
-
-
-r1 = requests.post("http://127.0.0.1:8081/init", data=post_json)
-print(r1.content.decode("utf8"))
-
-"""

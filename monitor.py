@@ -12,7 +12,7 @@ class MyHandler(FileSystemEventHandler):
         print("*************************************************\n***************************************************\n*************************************")
         # s1="ps  -ef |grep chat_api.py| grep -v grep | awk '{print $2}' | xargs kill -9 "
         # s3="nohup /opt/anaconda3/envs/py39/bin/python chat_api.py >> ./chat_api.log 2>&1 &"
-        time.sleep(5)
+        time.sleep(2)
         s4="sh ./run_chatapi.sh"
         for cmd in [s4]:
            output = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
