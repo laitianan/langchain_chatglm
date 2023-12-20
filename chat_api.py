@@ -2,7 +2,8 @@
 import time
 import asyncio
 from logging.handlers import RotatingFileHandler
-
+# from shared import SharedObject
+from config import api_base, saveinterfacepath
 import uvicorn
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
@@ -13,11 +14,14 @@ from langchain.agents import AgentExecutor
 from bm25 import BM25
 from doc import Doc
 from intentAgent_model import IntentAgent
+from redis_manger import get_version, set_version
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
 from MyOpenAI import myOpenAi, call_qwen_funtion
 from prompt_helper import init_all_fun_prompt
-from utils import load_interface_template,save_interface_template
+from utils import load_interface_template, save_interface_template, is_true_number
 import time
+from fastapi import  Request
+from fastapi.responses import JSONResponse
 import logging
 logger = logging.getLogger()
 
@@ -31,17 +35,17 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 app = FastAPI()
-from api_protocol import  (
-InitInterfaceResponse,
-InitInterfaceRequest,
-ChatCompletionRequest,
-ChatCompletionResponse,
-FunCompletionRequest,
-ChatResponse,
-DeleteResponse,
-TemplateResponse,
-Intention_Search_Response,
-Funtion
+from api_protocol import (
+    InitInterfaceResponse,
+    InitInterfaceRequest,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    FunCompletionRequest,
+    ChatResponse,
+    DeleteResponse,
+    TemplateResponse,
+    Intention_Search_Response,
+    Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp
 
 )
 app.add_middleware(
@@ -51,8 +55,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from fastapi import  Request
-from fastapi.responses import JSONResponse
+
 
 
 class UnicornException(Exception):
@@ -67,11 +70,49 @@ async def unicorn_exception_handler(request: Request, exc: UnicornException):
         content={"status": 402,"message":f"{exc.name}"},
     )
 
+def init_run():
+    global  agent_exec,toos_dict,llm,initparam,search
+    initparam = load_interface_template(saveinterfacepath)
+    if not initparam:
+        return  None,None,None,None,None
+    llm = myOpenAi()
+    toos_dict = {}
+    docs=[]
+    prompt_dict=init_all_fun_prompt(initparam)
+    for param in initparam.params  :
+        if param.usableFlag:
+            sub_param_type={e.name:e.type for e in param.inputParams}
+            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict,sub_param_type=sub_param_type)
+            docs.append(Doc(funtion_id=param.id, name=param.name))
+    # search = Query_Search(docs)
+    if len(docs)==0:
+        search=None
+        agent_exec=None
+        toos_dict=None
+    else:
+        search =BM25(docs)
+        tools=list(toos_dict.values())
+        unknowntool=Unknown_Intention_Model_Tool(llm=llm)
+        tools.append(unknowntool)
+        # # 选择工具
+        agent = IntentAgent(tools=tools, llm=llm,default_intent_name=unknowntool.name)
+        agent_exec = AgentExecutor.from_agent_and_tools(agent=agent,  tools=tools, verbose=False,max_iterations=1)
+    return agent_exec,toos_dict,llm,initparam,search
+
+agent_exec,toos_dict,llm,initparam,search=init_run()
+current_version=get_version()
 
 def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException 的装饰器函数，它接受一个参数 func这个 func 就是即将要被修饰的函数
+
     @wraps(func)
-    async def wrapper(*args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
+    async def wrapper( *args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
+        global agent_exec, toos_dict, llm, initparam, search, current_version
         try:
+            version=get_version()
+            if current_version != version:
+                agent_exec, toos_dict, llm, initparam, search = init_run()
+                current_version=version
+
             start_time = time.time()  # 程序开始时间
             # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
@@ -88,7 +129,6 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
 
 
 
-from config import api_base, saveinterfacepath
 
 @app.post("/chat/completions", response_model=ChatResponse)
 @raise_UnicornException
@@ -98,10 +138,45 @@ async def chat(request: ChatCompletionRequest):
     return ChatResponse(status=200,message=resp)
 
 
+@app.post("/beautify_chat/completions", response_model=ChatResponse)
+@raise_UnicornException
+async def beautify_chat(request: Beautify_ChatCompletionRequest):
+    funname_resp = request.funname_resp
+    content="\n".join([f"{1}.查询：{res.name},查询结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
+    system_conten = f"""你是幸福西饼AI客服，请根据下面已知信息组织语言回答用户问题，已知的信息可能不能满足用户的问题，请回复无法解答，请尝试咨询其他业务，\n已知以下信息：\n{content}\n
+举例：
+用户问题：习近平是出生日期是多少
+你的回复：无法解答，请尝试咨询其他业务
+
+用户问题：幸福西饼每年的捐款多少钱
+你的回复：无法解答，请尝试咨询其他业务
+
+用户问题：核销苹果账单
+你的回复：无法解答，请尝试咨询其他业务
+"""
+    mess=request.message
+    if mess[0].role== "system":
+        mess.pop(0)
+    mess.insert(0,ChatMessage(role="system",content=system_conten))
+    response=call_qwen_funtion(mess,top_p=0)
+    resp=response.choices[0].message.content
+    i=1
+    while i<=10:
+        i+=1
+        if is_true_number(resp,content) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("无法解答，请尝试咨询其他业务")*2):
+            break
+        else:
+            print(resp)
+            response = call_qwen_funtion(request.message,top_p=0.8)
+            resp = response.choices[0].message.content
+    return ChatResponse(status=200, message=resp)
+
+
+
 @app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
 @raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
-    global  initparam
+    global  initparam,current_version
     if initparam  :
         interface_fun = {param.id:param for param in initparam.params}
         for param in request.params:
@@ -113,6 +188,8 @@ async def init_funtion_template(request: InitInterfaceRequest):
         initparam=request
     save_interface_template(initparam, saveinterfacepath)
     init_run()
+    set_version()
+    current_version=get_version()
     res=InitInterfaceResponse(status=200,message="添加模板成功")
     return res
 
@@ -153,6 +230,20 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         _, message = tool._run(query)
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
 
+@app.post("/chat_multi_intention/completions", response_model=Chat_LinksResponse)
+@raise_UnicornException
+async def chat_multi_intention(request: FunCompletionRequest):
+    global  agent_exec,toos_dict
+
+    mess = merge_message(request.message)
+    docs = await agent_exec.agent.choose_tools(mess)
+    tools=[]
+    for doc in docs:
+        tool = toos_dict[doc.funtion_id]
+        id_, message = tool._run(mess)
+        tools.append(LinksResp(funtion_id=doc.funtion_id,name=doc.name,message=message))
+    return Chat_LinksResponse(status=200, tool=tools)
+
 
 
 @app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
@@ -163,6 +254,9 @@ async def chat_intention_search(request: ChatCompletionRequest):
     mess=merge_message(request.message)
     query=request.message[-1].content
     docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
+    if len(docs2)!=0 and len(query.replace(" ",""))>4 :
+        # docs1=[]
+        pass
     docs1, docs2=set(docs1),set(docs2)
     d=docs2.intersection(docs1)
 
@@ -176,35 +270,7 @@ async def chat_intention_search(request: ChatCompletionRequest):
     return Intention_Search_Response(status=200,funtions=funtions)
 
 
-def init_run():
-    global  agent_exec,toos_dict,llm,initparam,search
 
-    initparam = load_interface_template(saveinterfacepath)
-    if not initparam:
-        return
-
-
-    llm = myOpenAi(temperature=0.8,max_tokens=2000)
-    toos_dict = {}
-    docs=[]
-    prompt_dict=init_all_fun_prompt(initparam)
-    for param in initparam.params  :
-        if param.usableFlag:
-            sub_param_type={e.name:e.type for e in param.inputParams}
-            toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict,sub_param_type=sub_param_type)
-            docs.append(Doc(funtion_id=param.id, name=param.name))
-    # search = Query_Search(docs)
-    search =BM25(docs)
-
-    tools=list(toos_dict.values())
-    unknowntool=Unknown_Intention_Model_Tool(llm=llm)
-    tools.append(unknowntool)
-    # # 选择工具
-    agent = IntentAgent(tools=tools, llm=llm,default_intent_name=unknowntool.name)
-    agent_exec = AgentExecutor.from_agent_and_tools(agent=agent,  tools=tools, verbose=False,max_iterations=1)
-    return agent_exec,toos_dict,llm,initparam,search
-
-agent_exec,toos_dict,llm,initparam,search=init_run()
 
 if __name__ == "__main__":
 

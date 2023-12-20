@@ -47,7 +47,7 @@ class Model_Tool(functional_Tool):
                         continue
 
                     v_=v.lower().strip()
-                    if  "null" in v_  or "未知"  in v_ or is_xxCH(v_,query) :
+                    if  "null" in v_  or "未知"  in v_ or is_xxCH(v_,query.lower().strip()) :
                         resp[k]=None
                 for k,v in sub_param.items():
                     if k in resp and resp[k] is not None:

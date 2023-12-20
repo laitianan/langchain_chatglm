@@ -27,6 +27,7 @@ user:我想366大街昨天的订单为的详情
 你的回答:
 """
 strs=[text2]
+strs=["4杯25度的水加起来多少度"]
 # data=json.dumps({
 #     "messages": strs,
 #   })

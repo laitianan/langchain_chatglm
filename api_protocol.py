@@ -57,6 +57,13 @@ class ChatMessage(BaseModel):
 class ChatCompletionRequest(BaseModel):
     message:List[ChatMessage]
 
+class FuntionResp(BaseModel):
+    name:str
+    resp:str
+class Beautify_ChatCompletionRequest(BaseModel):
+    funname_resp:List[FuntionResp]
+    message: List[ChatMessage]
+
 class FunCompletionRequest(BaseModel):
     funtion_id:Optional[str]= ""
     message:Union[List[ChatMessage],str]
@@ -66,6 +73,17 @@ class ChatCompletionResponse(BaseModel):
     funtion_id:Optional[str]=""
     role: Optional[str]="assistant"
     message: str
+
+class LinksResp(BaseModel):
+    funtion_id:Optional[str]=""
+    name:str
+    role: Optional[str]="assistant"
+    message: str
+
+class Chat_LinksResponse(BaseModel):
+    status: int
+    tool:List[LinksResp]
+
 
 class Funtion(BaseModel):
     id:str

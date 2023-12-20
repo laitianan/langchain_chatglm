@@ -55,8 +55,8 @@ if __name__ == '__main__':
 
     docs=[Doc(funtion_id=f"{i}",name=name) for i,name in enumerate(docs)]
 
-    search=Query_Search()
-    search.load(docs)
+    search=Query_Search(docs)
+    # search.load(docs)
     sim=search.calc_similarity_rank("当天")
     for doc in sim:
         print(doc.name,doc.score)

@@ -11,15 +11,15 @@ import openai
 openai.api_base = "http://192.168.0.11:8081/v1"
 openai.api_key = "none"
 
-
+from config import  llm_model
 def call_qwen(messages, functions=None):
     # print("-----",messages)
     if functions:
         response = openai.ChatCompletion.create(
-            model="Qwen", messages=messages, functions=functions
+            model=llm_model, messages=messages, functions=functions
         )
     else:
-        response = openai.ChatCompletion.create(model="Qwen", messages=messages)
+        response = openai.ChatCompletion.create(model=llm_model, messages=messages)
     # print(response)
     # print("*****",response.choices[0].message.content)
     return response
@@ -257,7 +257,7 @@ def test_4():
     from langchain.agents import load_tools, initialize_agent, AgentType
 
     llm = ChatOpenAI(
-        model_name="Qwen",
+        model_name=llm_model,
         openai_api_base=openai.api_base ,
         openai_api_key="EMPTY",
         streaming=False,

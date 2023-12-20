@@ -31,7 +31,7 @@ class  myOpenAi(ChatOpenAI):
     model_name = llm_model
     max_tokens = 500
     # temperature=0.7
-    # top_p = 0.8
+    top_p = 0.8
     max_length = 1500
 
     @property
@@ -45,7 +45,7 @@ class  myOpenAi(ChatOpenAI):
             "n": self.n,
             # "temperature": self.temperature,
             "max_length": self.max_length,
-            # "top_p":self.top_p,
+            "top_p":self.top_p,
             **self.model_kwargs,
         }
         return parm
@@ -89,7 +89,7 @@ import openai
 
 openai.api_base = api_base
 openai.api_key = "none"
-def call_qwen_funtion(messages):
+def call_qwen_funtion(messages,top_p=None):
     messages=[{"role":mess.role,"content":mess.content} for mess in  messages]
     if messages[-1]["role"]=="function":
         mess = messages.pop(-1)
@@ -122,32 +122,19 @@ def call_qwen_funtion(messages):
             model=llm_model, messages=messages, functions=functions
         )
     else:
-        response = openai.ChatCompletion.create(model=llm_model, messages=messages)
+        if not top_p:
+            response = openai.ChatCompletion.create(model=llm_model, messages=messages,top_p=top_p)
+        else:
+            response = openai.ChatCompletion.create(model=llm_model, messages=messages)
     return response
 
 if __name__ == '__main__':
-    llm = myOpenAi()
+    llm = myOpenAi(top_p=0)
 
-    text="""
-你的任务是根据***分隔符的历史对话沟通记录，从user和assistant聊天记录理解user需求，并从聊天记录抽取正确的结构值以结构化数据格式返回，取不到的值使用None代替,
-时间字段直接从user聊天抽取不出来需结合系统当前时间推理,系统当前时间2023-11-14 15:14:05,比如则根据系统当前时间推理:今天的开始日期时间为2023-11-14 00:00:00,今天的结束时间为2023-11-14 23:59:59,严格禁止生成聊天记录不存在的数据,
-输出应该是严格按以下模式格式化的标记代码片段，必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
-```json
-{   //字段名|返回类型|字段详情
-	"shop_name": STRING  // 店铺名称，抽取不到时使用"None"代替.
-	"begin_time": STRING  // 开始时间(YYYY-MM-HH)，抽取不到时使用"None"代替
-	"end_time": STRING  // 结束时间(YYYY-MM-HH)，抽取不到时使用"None"代替
-	"sales_amount": float  // 销售金额（单位元,），抽取不到时使用"None"代替
-	"businessTypeNames": string  // 业务类型，[零售业务,商城业务]选择其中一项，抽取不到时使用"None"代替
-}
-历史对话沟通记录：
-***
-user:366大街店铺新零售早上九点到晚上六点的总营销额为三千万
-***
-你的回答:
+    text="""你好
 """
 
-    for i in range(100):
+    for i in range(1):
 
         res = llm.predict(text)
         print(i,res)

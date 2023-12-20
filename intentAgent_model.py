@@ -53,7 +53,6 @@ class IntentAgent(BaseSingleActionAgent):
         res=[]
         userinput=self.prompt1.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
 
-
         name=""
         for i in range(3):
             try:
@@ -78,6 +77,7 @@ class IntentAgent(BaseSingleActionAgent):
         res.append(self.default_intent_name)
         return res
 
+
     async def choose_tools(self, query) -> List[Doc]:
         self.merge_summary()
         user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
@@ -87,7 +87,11 @@ class IntentAgent(BaseSingleActionAgent):
                 resp = self.llm.predict(user_input)
                 logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
                 resp=parse_json_markdown_for_list(resp)
-                break
+                resp=[e for e  in resp if e in self.tool_names and e!=self.default_intent_name]
+                if len(resp)==0:
+                    continue
+                else:
+                    break
             except:
                 resp=[]
         docs=set()
@@ -107,7 +111,9 @@ class IntentAgent(BaseSingleActionAgent):
     ) -> Union[AgentAction, AgentFinish]:
         tools=self.choose_tool(kwargs["input"])
         tool_name = tools[0]
+
         return AgentAction(tool=tool_name, tool_input=kwargs["input"], log="")
+
 
     async def aplan(
             self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any

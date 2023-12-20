@@ -23,8 +23,6 @@ def save_interface_template(data:InitInterfaceRequest,pathname="interface_templa
         pickle.dump(data.dict(), f)
 
 
-
-
 def parse_json_markdown_for_list(json_string: str) :
     match = re.search( r"(\[(.*?)\])", json_string, re.DOTALL)
     if match is None:
@@ -125,3 +123,23 @@ def is_xxCH(v_string,query):
         return True
     else:
         return False
+
+
+def is_true_number(text, query):
+    pattern = r'\d+\.?\d*[千万亿]*'
+    numbers = re.findall(pattern, text, re.DOTALL)
+
+    res = True
+    if len(numbers) != 0:
+        for number in numbers:
+            if number not in query:
+                try:
+                    number = float(number)
+                    if number <= 30.:
+                        res = True
+                    else:
+                        res = False
+                except:
+
+                    res = False
+    return res

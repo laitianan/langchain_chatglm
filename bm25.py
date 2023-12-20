@@ -161,8 +161,8 @@ class BM25(object):
         res=res or result
         log=",".join([f"{e.name}/{e.score}" for e in res])
         logging.info(f"query:{query},\tresult:{log}")
-        # log = ",".join([f"{e.name}/{e.score}" for e in result])
-        # logging.info(f"query:{query},\tresult--all:{log}")
+        log = ",".join([f"{e.name}/{e.score}" for e in result])
+        print(f"query:{query},\tresult--all:{log}")
         return res or result
 
     async def cal_similarity_rank(self,query)->List[Doc]:
@@ -175,7 +175,7 @@ class BM25(object):
 
 if __name__ == '__main__':
     # bm25 = BM25()
-    query_content = "查询"
+    query_content = "站点业绩"
     docs = ["门店当天实时业绩查询", "门店按天查询业绩",
                           "站点当天实时业绩查询", "站点按天查询业绩","查询订单详情", "查询订单配送状态", "查询订单金额状态"]
 

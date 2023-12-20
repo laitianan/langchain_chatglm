@@ -5,23 +5,20 @@ from watchdog.events import FileSystemEventHandler
 
 import config
 import os
-
+import  requests
 class MyHandler(FileSystemEventHandler):
    def on_modified(self, event):
 
         print("*************************************************\n***************************************************\n*************************************")
-        # s1="ps  -ef |grep chat_api.py| grep -v grep | awk '{print $2}' | xargs kill -9 "
-        # s3="nohup /opt/anaconda3/envs/py39/bin/python chat_api.py >> ./chat_api.log 2>&1 &"
-        time.sleep(2)
-        s4="sh ./run_chatapi.sh"
-        for cmd in [s4]:
-           output = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
-           print(output)
-
-           if output.returncode == 0:
-               print(f"----------------执行命令成功{cmd}-----------------------------")
-           else:
-               print(f"----------------执行命令失败{cmd}-----------------------------")
+        base_url = "127.0.0.1:8084"
+        for i in range(100):
+            t1 = time.time()
+            r1 = requests.post(f"http://{base_url}/get_all_template/completions")
+            # print(r1.content.decode("utf8"))
+            content = r1.content.decode("utf8")
+            print(content)
+            t2 = time.time()
+            print("总耗时(秒):", t2 - t1)
 
            # break
 
