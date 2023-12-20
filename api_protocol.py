@@ -58,7 +58,7 @@ class ChatCompletionRequest(BaseModel):
     message:List[ChatMessage]
 
 class FuntionResp(BaseModel):
-    name:str
+    funtion_id:str
     resp:str
 class Beautify_ChatCompletionRequest(BaseModel):
     funname_resp:List[FuntionResp]

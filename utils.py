@@ -118,24 +118,29 @@ def get_num(string):
 def is_xxCH(v_string,query):
     if v_string=="":
         return True
-    m=re.findall(r"[a-zA-Z]{2,}", v_string)
-    if len(m) and m[0] not in query:
-        return True
-    else:
-        return False
+    m=re.findall(r"[a-zA-Z]{1,}", v_string)
+    for e in m:
+        if e not in query:
+            return True
+    return False
 
+
+
+import re
 
 def is_true_number(text, query):
     pattern = r'\d+\.?\d*[千万亿]*'
     numbers = re.findall(pattern, text, re.DOTALL)
-
+    query=re.findall(pattern, query, re.DOTALL)
     res = True
     if len(numbers) != 0:
         for number in numbers:
             if number not in query:
                 try:
-                    number = float(number)
-                    if number <= 30.:
+                    i_s=text.index(number)
+                    i_end=i_s+len(number)
+                    char=text[i_end:i_end+1]
+                    if char in ["、",".","，"]:
                         res = True
                     else:
                         res = False

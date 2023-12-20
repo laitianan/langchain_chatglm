@@ -17,8 +17,8 @@ from intentAgent_model import IntentAgent
 from redis_manger import get_version, set_version
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
 from MyOpenAI import myOpenAi, call_qwen_funtion
-from prompt_helper import init_all_fun_prompt
-from utils import load_interface_template, save_interface_template, is_true_number
+from prompt_helper import init_all_fun_prompt, FUNTION_CALLING_FORMAT_INSTRUCTIONS
+from utils import load_interface_template, save_interface_template, is_true_number, is_xxCH
 import time
 from fastapi import  Request
 from fastapi.responses import JSONResponse
@@ -112,7 +112,6 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
             if current_version != version:
                 agent_exec, toos_dict, llm, initparam, search = init_run()
                 current_version=version
-
             start_time = time.time()  # 程序开始时间
             # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
@@ -141,34 +140,31 @@ async def chat(request: ChatCompletionRequest):
 @app.post("/beautify_chat/completions", response_model=ChatResponse)
 @raise_UnicornException
 async def beautify_chat(request: Beautify_ChatCompletionRequest):
+    global  toos_dict,llm
     funname_resp = request.funname_resp
-    content="\n".join([f"{1}.查询：{res.name},查询结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
-    system_conten = f"""你是幸福西饼AI客服，请根据下面已知信息组织语言回答用户问题，已知的信息可能不能满足用户的问题，请回复无法解答，请尝试咨询其他业务，\n已知以下信息：\n{content}\n
-举例：
-用户问题：习近平是出生日期是多少
-你的回复：无法解答，请尝试咨询其他业务
 
-用户问题：幸福西饼每年的捐款多少钱
-你的回复：无法解答，请尝试咨询其他业务
-
-用户问题：核销苹果账单
-你的回复：无法解答，请尝试咨询其他业务
-"""
-    mess=request.message
-    if mess[0].role== "system":
-        mess.pop(0)
-    mess.insert(0,ChatMessage(role="system",content=system_conten))
-    response=call_qwen_funtion(mess,top_p=0)
-    resp=response.choices[0].message.content
+    query="\n".join([f"{i+1}.查询：{toos_dict[res.funtion_id].description},查询结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
+    userinput=merge_message(request.message)
+    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query, userinput=userinput)
+    mess = request.message
+    # if mess[0].role == "system":
+    #     mess.pop(0)
+    # mess.insert(0, ChatMessage(role="system", content="仅仅回答用户咨询与幸福西饼有关的问题"))
+    mess.append(ChatMessage(role="user",content=content))
+    response = call_qwen_funtion(mess, top_p=0)
+    resp = response.choices[0].message.content
     i=1
-    while i<=10:
+    n=3
+    while i<=n:
         i+=1
-        if is_true_number(resp,content) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("无法解答，请尝试咨询其他业务")*2):
+        if is_true_number(resp,query)  and not is_xxCH(resp,query) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("未查到信息，请尝试咨询其他业务")*2):
             break
         else:
-            print(resp)
-            response = call_qwen_funtion(request.message,top_p=0.8)
+            response = call_qwen_funtion(mess,top_p=0.8)
             resp = response.choices[0].message.content
+    if i>n:
+        resp="很抱歉，我无法提供您需要的信息。请咨询客服以获取更多帮助"
+    logging.info(f"<chat>\n\nquery:\t{content}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
     return ChatResponse(status=200, message=resp)
 
 
