@@ -143,27 +143,28 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
     global  toos_dict,llm
     funname_resp = request.funname_resp
 
-    query="\n".join([f"{i+1}.查询：{toos_dict[res.funtion_id].description},查询结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
-    userinput=merge_message(request.message)
-    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query, userinput=userinput)
+    query="\n".join([f"{i+1}.{toos_dict[res.funtion_id].description},查询详情结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
+    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query)
     mess = request.message
-    # if mess[0].role == "system":
-    #     mess.pop(0)
-    # mess.insert(0, ChatMessage(role="system", content="仅仅回答用户咨询与幸福西饼有关的问题"))
-    mess.append(ChatMessage(role="user",content=content))
-    response = call_qwen_funtion(mess, top_p=0)
+    if mess[0].role == "system":
+        mess.pop(0)
+    mess.insert(0, ChatMessage(role="system", content=content))
+    mess[-1].content=mess[-1].content+"(请使用幸福西饼查询信息回复我的问题)"
+
+    response = call_qwen_funtion(mess, top_p=0.5)
     resp = response.choices[0].message.content
     i=1
     n=3
     while i<=n:
         i+=1
-        if is_true_number(resp,query)  and not is_xxCH(resp,query) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("未查到信息，请尝试咨询其他业务")*2):
+        if is_true_number(resp,query)  and not is_xxCH(resp,query) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("未能理解你的问题，请尝试咨询其他业务")*2):
             break
         else:
             response = call_qwen_funtion(mess,top_p=0.8)
             resp = response.choices[0].message.content
     if i>n:
         resp="很抱歉，我无法提供您需要的信息。请咨询客服以获取更多帮助"
+    mess=merge_message(request.message)
     logging.info(f"<chat>\n\nquery:\t{content}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
     return ChatResponse(status=200, message=resp)
 
