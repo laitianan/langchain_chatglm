@@ -20,10 +20,10 @@ def call_qwen(messages, functions=None):
     print(messages)
     if functions:
         response = openai.ChatCompletion.create(
-            model="Qwen-7B-Chat", messages=messages, functions=functions
+            model="Qwen-14B-Chat-Int4", messages=messages, functions=functions
         )
     else:
-        response = openai.ChatCompletion.create(model="Qwen-7B-Chat", messages=messages)
+        response = openai.ChatCompletion.create(model="Qwen-14B-Chat-Int4", messages=messages)
     print(response)
     print(response.choices[0].message.content)
     return response
@@ -80,7 +80,7 @@ def test_2():
     ]
 
     messages = [{"role": "user", "content": "你好"}]
-    call_qwen(messages, functions)
+    res=call_qwen(messages, functions)
     messages.append(
         {"role": "assistant", "content": "你好！很高兴见到你。有什么我可以帮忙的吗？"},
     )
@@ -182,7 +182,7 @@ def test_3():
     messages = [
         {
             "role": "user",
-            # Note: The current version of Qwen-7B-Chat (as of 2023.08) performs okay with Chinese tool-use prompts,
+            # Note: The current version of Qwen-14B-Chat-Int4 (as of 2023.08) performs okay with Chinese tool-use prompts,
             # but performs terribly when it comes to English tool-use prompts, due to a mistake in data collecting.
             "content": "波士顿天气如何？",
         }
@@ -191,7 +191,7 @@ def test_3():
     messages.append(
         {
             "role": "assistant",
-            "content": None,
+            "content": "",
             "function_call": {
                 "name": "get_current_weather",
                 "arguments": '{"location": "Boston, MA"}',
@@ -236,8 +236,8 @@ if __name__ == "__main__":
     # print("### Test Case 1 - No Function Calling (普通问答、无函数调用) ###")
     # test_1()
     # print("### Test Case 2 - Use Qwen-Style Functions (函数调用，千问格式) ###")
-    test_2()
+    # test_2()
     # print("### Test Case 3 - Use GPT-Style Functions (函数调用，GPT格式) ###")
-    # test_3()
+    test_3()
     # print("### Test Case 4 - Use LangChain (接入Langchain) ###")
     # test_4()

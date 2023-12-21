@@ -106,13 +106,13 @@ def call_qwen_funtion(messages,top_p=None):
         messages.append(mess)
         functions=[{
             "name": "beautify_language",
-            "description": "使用AI客服风格，重新组织美化语言回复用户问题",
+            "description": "使用AI客服风格，回答用户问题",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "info": {
                         "type": "string",
-                        "description": "系统查询到的数据",
+                        "description": "系统查询的数据信息",
                     }
                 },
                 "required": ["info"],

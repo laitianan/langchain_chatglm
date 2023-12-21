@@ -146,11 +146,12 @@ class Presstest(object):
             """
             
             message=[
-                    {"role": "user", "content":"订单xs1234565和在多少个城市开店(请使用幸福西饼查询信息回复我的问题)"},
+                    {"role": "user", "content":"订单xs1234565详情和在多少个城市开店(请使用幸福西饼查询信息回复我的问题)"},
                     #   {"role": "assistant", "content":" 单号：xs1234565，商品名称：黑森林，单价：158，数量：1，用户购买量：三千万，总价：158，配送时间：2023-11-18配送状态：结束。幸福西饼覆盖300个城市。"},
                     #   {"role": "user", "content":"用户购买量"},
                     #   {"role": "assistant", "content":"用户购买量为三千万。"},
                     # {"role": "user", "content":"谷歌的创始人是谁（请使用幸福西饼查询信息回复）"},
+                    {"role": "function", "content":" 单号：xs1234565，商品名称：黑森林，单价：158，数量：1，用户购买量：三千万，总价：158，配送时间：2023-11-18配送状态：结束。幸福西饼覆盖300个城市。"},
                 ]
 
 
@@ -163,7 +164,7 @@ class Presstest(object):
                 for mess in messs:
                     history.append({"role": mess["role"], "content": mess["content"]})
             api_base = "http://192.168.0.11:8081/v1"
-            llm_model="Qwen-7B-Chat"
+            llm_model=self.model
             # llm_model="internlm-chat"
             data=json.dumps({
                 "model": llm_model,
@@ -206,13 +207,13 @@ class Presstest(object):
             "funname_resp":[{"funtion_id": "2114", "resp": cont},
                             {"funtion_id": "2123", "resp": cont2}],
             "message":[
-                    # {"role": "user", "content":"订单xs1234565详情和幸福西饼在多少个城市开店"},
-                    #   {"role": "assistant", "content":" 单号：xs1234565，商品名称：黑森林，单价：158，数量：1，用户购买量：三千万，总价：158，配送时间：2023-11-18配送状态：结束。幸福西饼覆盖300个城市。"},
-                    #   {"role": "user", "content":"用户购买量"},
-                    #    {"role": "assistant", "content":"用户购买量为三千万。"},
-                    # {"role": "user", "content":"广东省的最高销量市多少"},
+                    # {"role": "user", "content":"订单XS2023121515590681195和覆盖了多少个城市"},
+                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。关于幸福西饼覆盖的城市数量，查询详情结果如下:数量：300。感谢您的提问！"},
+                        # {"role": "user", "content":"配送时间是多少"},
+                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
+                        # {"role": "user", "content":"XS2023121515590681195"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
-                    {"role": "user", "content":"XS2023121515590681195"},
+                    {"role": "user", "content":"广州销量最高的店铺"},
                 ]})
 
         r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
@@ -223,7 +224,7 @@ class Presstest(object):
         i = 0
         while i < ONE_WORKER_NUM:
             i += 1
-            self.testinterface()
+            self.testinterface4()
         time.sleep(LOOP_SLEEP)
 
     def run(self):
@@ -311,11 +312,11 @@ if __name__ == '__main__':
 
     # press_url = f"http://192.168.0.11:8081/v1/chat/completions"
 
-    THREAD_NUM =1  # 并发线程总数
+    THREAD_NUM =100  # 并发线程总数
     ONE_WORKER_NUM = 1  # 每个线程的循环次数
     LOOP_SLEEP = 0.1  # 每次请求时间间隔(秒)
     ERROR_NUM = 0  # 出错数
-    model="Qwen-7B-Chat"
+    model="Qwen-14B-Chat-Int4"
     base_url="127.0.0.1:8084"
     # base_url="61.141.232.106:8084"
     obj = Presstest(model,base_url)
