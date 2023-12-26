@@ -5,6 +5,8 @@ from langchain import LLMChain, PromptTemplate
 from langchain.base_language import BaseLanguageModel
 from langchain.memory import ConversationBufferMemory
 from langchain.agents.conversational_chat.base import ConversationalChatAgent
+
+from config import  topp_
 from utils import  parse_json_markdown,parse_json_markdown_for_list
 import  logging
 from typing import List, Tuple, Any, Union, Optional
@@ -82,18 +84,22 @@ class IntentAgent(BaseSingleActionAgent):
         self.merge_summary()
         user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
         resp=[]
+        self.llm.top_p=0.0
         for i in range(3):
             try:
                 resp = self.llm.predict(user_input)
-                logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+                logging.info(f"<chat>{i}{self.llm.top_p}\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
                 resp=parse_json_markdown_for_list(resp)
                 resp=[e for e  in resp if e in self.tool_names and e!=self.default_intent_name]
-                if len(resp)==0:
-                    continue
-                else:
-                    break
+                # if len(resp)==0:
+                #     continue
+                # else:
+                break
             except:
                 resp=[]
+                logging.info(f"异常解析response:\n{resp}\n\n</chat>")
+            finally:
+                self.llm.top_p = topp_
         docs=set()
         for i,name in enumerate(resp) :
             if name !=self.default_intent_name and name in self.tool_names :

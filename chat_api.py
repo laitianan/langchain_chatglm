@@ -2,6 +2,8 @@
 import time
 import asyncio
 from logging.handlers import RotatingFileHandler
+import re
+
 # from shared import SharedObject
 from config import api_base, saveinterfacepath
 import uvicorn
@@ -30,7 +32,6 @@ formatter = logging.Formatter(
     "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
 )
 file_handler = RotatingFileHandler("./data/chat_api.log", 'a', 10*1024*1024, 360,encoding="utf-8")
-file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
@@ -144,24 +145,36 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
     funname_resp = request.funname_resp
 
     query="\n".join([f"{i+1}.{toos_dict[res.funtion_id].description},详情结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
-    # content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query)
+    if query=="":
+        query="未查询到任何信息，请咨询其他业务"
+
+    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query)
     mess = request.message
     if mess[0].role == "system":
         mess.pop(0)
-    mess.append(ChatMessage(role="function", content=query))
-    # mess[-1].content=mess[-1].content+"(请使用幸福西饼已知信息回复我的问题)"
+    mess.insert(0, ChatMessage(role="system", content=content))
+    for i,role in enumerate(mess):
+        if role.role in [ "assistant", "system","function"]:
+            continue
+        mc = role.content.strip()
+        if re.findall(r"XS[a-zA-Z0-9]+", mc):
+            role.content = mc + "(查看该订单号详情,请根据幸福西饼已知信息回复我的问题)"
+        else:
+            if i==len(mess)-1:
+                role.content = mc + "(回复详情,请根据幸福西饼已知信息回复我的问题)"
 
-    history = merge_message(request.message)
-    top_p = 0.1
+    history = merge_message(mess)
+    top_p = 0.
     response = call_qwen_funtion(mess, top_p=top_p)
     resp = response.choices[0].message.content
     i=1
     n=3
 
     while i<=n:
+        print(i, resp)
         top_p+=0.1
         i+=1
-        if "？" not in resp and "?" not in resp and is_true_number(resp,history)  and not is_xxCH(resp,history) and (len(resp)<=len(content.replace(" ",""))*2 or len(resp)<=len("未能理解你的问题，请尝试咨询其他业务")*2):
+        if "？" not in resp and "?" not in resp and is_true_number(resp,history)  and not is_xxCH(resp,history) :
             break
         else:
             response = call_qwen_funtion(mess,top_p=top_p)
@@ -169,7 +182,7 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
     if i>n:
         resp="很抱歉，我无法提供您需要的信息。请咨询客服以获取更多帮助"
 
-    logging.info(f"<chat>\n\nquery:\t{mess}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+    logging.info(f"<chat>\n\nquery:\t{history}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
     return ChatResponse(status=200, message=resp)
 
 
@@ -227,6 +240,12 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         return ChatCompletionResponse(status=200,funtion_id=fun_id,message=message)
     else:
         tool = toos_dict[request.funtion_id]
+        for role in request.message:
+            content=role.content.strip()
+            order=re.findall(r"XS[a-zA-Z0-9]+", content)
+            if len(order)>0:
+                order=order[0]
+                role.content=content+f"({order}为订单号)"
         query = merge_message(request.message)
         _, message = tool._run(query)
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
@@ -235,7 +254,6 @@ async def chat_funtion_intention(request: FunCompletionRequest):
 @raise_UnicornException
 async def chat_multi_intention(request: FunCompletionRequest):
     global  agent_exec,toos_dict
-
     mess = merge_message(request.message)
     docs = await agent_exec.agent.choose_tools(mess)
     tools=[]
@@ -252,12 +270,25 @@ async def chat_multi_intention(request: FunCompletionRequest):
 async def chat_intention_search(request: ChatCompletionRequest):
     global  search,agent_exec
 
+    for e in request.message:
+        order = re.findall(r"XS[a-zA-Z0-9]+", e.content)
+        if len(order) > 0 and not re.match(r"^XS[a-zA-Z0-9]+$", e.content):
+            order = order[0]
+            e.content = e.content + f"({order}为订单号)"
+
     mess=merge_message(request.message)
-    query=request.message[-1].content
-    docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
-    if len(docs2)!=0 and len(query.replace(" ",""))>4 :
-        # docs1=[]
-        pass
+    query=request.message[-1].content.strip()
+    m = re.findall(r"^XS[a-zA-Z0-9]+$", query)
+    if len(m) > 0 and len(m[0])==len(query) and len(query)>=5:
+        docs1=search.calc_similarity_rank("订单号查询")
+        docs2 = []
+    elif query=="帮助":
+        docs1 = search.calc_similarity_rank("帮助")
+        docs2 = []
+    else:
+        docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
+        if len(docs2)!=0 and len(query.replace(" ",""))>6 :
+            docs1=[]
     docs1, docs2=set(docs1),set(docs2)
     d=docs2.intersection(docs1)
 
@@ -268,6 +299,7 @@ async def chat_intention_search(request: ChatCompletionRequest):
         e.fro="AI"
     docs=list(d)+list(docs2)+list(docs1)
     funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs]
+    funtions.sort(key=lambda  x:x.id)
     return Intention_Search_Response(status=200,funtions=funtions)
 
 

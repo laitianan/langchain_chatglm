@@ -24,14 +24,14 @@ from langchain.llms import OpenAI
     )
 """
 
-
+from config import topp_
 class  myOpenAi(ChatOpenAI):
     openai_api_base = api_base
     openai_api_key = "123456"
     model_name = llm_model
     max_tokens = 500
     # temperature=0.7
-    top_p = 0.8
+    top_p = topp_
     max_length = 1500
 
     @property
@@ -106,13 +106,13 @@ def call_qwen_funtion(messages,top_p=None):
         messages.append(mess)
         functions=[{
             "name": "beautify_language",
-            "description": "使用AI客服风格，回答用户问题",
+            "description": "使用AI客服风格，重新组织美化语言回复用户问题",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "info": {
                         "type": "string",
-                        "description": "系统查询的数据信息",
+                        "description": "系统查询到的数据",
                     }
                 },
                 "required": ["info"],

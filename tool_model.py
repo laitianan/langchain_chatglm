@@ -1,9 +1,10 @@
+from config import topp_
 from funtion_basetool import  functional_Tool
 from langchain.base_language import BaseLanguageModel
 from langchain.schema import AgentAction, AgentFinish
 from langchain.agents import BaseSingleActionAgent
 from langchain import LLMChain, PromptTemplate
-from utils import parse_json_markdown, get_current_weekday, validate_date_string, get_num, is_xxCH
+from utils import parse_json_markdown, get_current_weekday, validate_date_string, get_num, is_xxCH, is_xyzchar
 import json
 from typing import Any, Dict, List, Literal, Optional, Union
 import datetime
@@ -36,6 +37,7 @@ class Model_Tool(functional_Tool):
         user_input=self.prompt.format(user_input=query,current_time=current_time,current_date=current_date,yesterday=yesterday.__str__(),before_yesterday=before_yesterday.__str__())
         i = 0
         n=3
+        self.llm.top_p=0
         while True:
             resp_p = self.llm.predict(user_input)
             resp=resp_p
@@ -45,20 +47,17 @@ class Model_Tool(functional_Tool):
                 for k, v in resp.items():
                     if not v or k not in sub_param:
                         continue
-
-                    v_=v.lower().strip()
-                    if  "null" in v_  or "未知"  in v_ or is_xxCH(v_,query.lower().strip()) :
+                    if  "未知"  in v.strip() or is_xyzchar(v.strip(),query.strip()) :
                         resp[k]=None
                 for k,v in sub_param.items():
-                    if k in resp and resp[k] is not None:
+                    if k in resp and sub_param[k] is  None:
                         sub_param[k]=resp[k]
-                    v= sub_param[k]
-                    num=get_num(v)
-                    if num!="" and num not in query:
-                        sub_param[k]=None
+
                     if self.sub_param_type[k].lower()=="string" and isinstance(sub_param[k],list):
                         if len(sub_param[k])>0:
                             sub_param[k]=str(sub_param[k][0])
+
+                ##超过一半的参数被提取出来之后，就不再启动重试机制
                 s=sum([1 if e == None else 0 for e in sub_param.values()])
                 if s/len(sub_param) >=0.5 and i<n :
                     i+=1
@@ -69,6 +68,8 @@ class Model_Tool(functional_Tool):
                 if i>=n:
                     break
                 i += 1
+            finally:
+                self.llm.top_p = topp_
         return self.id, json.dumps(sub_param, ensure_ascii=False)
 
     def get_llm_chain(self):
@@ -80,8 +81,8 @@ class Unknown_Intention_Model_Tool(functional_Tool):
     llm: BaseLanguageModel
     id: str="000000"
     llm_chain: LLMChain = None
-    name:str="意图不明"
-    description:str="用户随便询问的内容,当其他意图不匹配时请选择该意图"
+    name:str="意图类别不明"
+    description:str="当其他意图类别不匹配时请选择该意图,用户随便询问的内容,比如用户说：你好、hello、HI、写一个策划、西红柿炒蛋怎么做等等与幸福西饼意图无关的问题"
 
     def _call_func(self, query):
         if query.count("user"):

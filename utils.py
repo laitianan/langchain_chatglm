@@ -5,6 +5,9 @@ import json
 import re
 import logging
 from ast import literal_eval
+
+import cn2an
+
 from api_protocol import InitInterfaceRequest
 
 def load_interface_template(pathname="interface_template_dict.pkl")->InitInterfaceRequest:
@@ -115,12 +118,54 @@ def get_num(string):
     else:
         return ""
 
-def is_xxCH(v_string,query):
+
+def is_xxCH(v_string,query_conten):
     if v_string=="":
         return True
-    m=re.findall(r"[a-zA-Z]{1,}", v_string)
+    p=r"[0-9a-zA-Z]+"
+    m=re.findall(p, v_string)
+    query = re.findall(p, query_conten)
+    ch_num = re.findall(r'[0-9负一二三四五六七八九十百千万亿零]+', query_conten, re.DOTALL)
+    if len(ch_num):
+        for e in ch_num:
+            if re.match(r"^[0-9]+$", e, re.DOTALL):
+                pass
+            else:
+                try:
+                    num = cn2an.cn2an(e, "smart")
+                    query.append(str(int(num)))
+                    query.append(str(float(num)))
+                except:
+                    pass
     for e in m:
-        if e not in query:
+        if e not in query :
+            return True
+    return False
+
+
+def is_xyzchar(v_string,query_content):
+    if validate_date_string(v_string):
+        return False
+
+    if v_string=="":
+        return True
+    p=r"[0-9a-zA-Z]+\.?[0-9a-zA-Z]+"
+    m=re.findall(p, v_string)
+    query = re.findall(p, query_content)
+    ch_num=re.findall(r'[0-9负一二三四五六七八九十百千万亿零]+', query_content, re.DOTALL)
+    if len(ch_num):
+        for e in ch_num:
+            if re.match(r"^[0-9]+$",e, re.DOTALL):
+                pass
+            else:
+                try:
+                    num=cn2an.cn2an(e, "smart")
+                    query.append(str(int(num)))
+                    query.append(str(float(num)))
+                except:
+                    pass
+    for e in m:
+        if e not  in query  and e not in ["user", "assistant", "system","function"]:
             return True
     return False
 
@@ -148,3 +193,31 @@ def is_true_number(text, query):
 
                     res = False
     return res
+
+if __name__=="__main__":
+    query="""'1.最近十天每天的销售额,详情结果如下:[{"销售额":444,"日期":"2023-12-20"},{"销售额":555,"日期":"2023-12-21"},{"销售额":666,"日期":"2023-12-22"},{"销售额":777,"日期":"2023-12-23"},{"销售额":888,"日期":"2023-12-24"},{"销售额":999,"日期":"2023-12-25"}]'"""
+    resp="""【近十天每日销售】
+12月19日：销售额1234元，订单量为20
+12月20日：销售额1345元，订单量为25
+12月21日：销售额1456元，订单量为30
+12月22日：销售额1567元，订单量为35
+12月23日：销售额1678元，订单量为40
+12月24日：销售额1789元，订单量为45
+12月25日：销售额1890元，订单量为50
+12月26日：销售额1901元，订单量为55
+12月27日：销售额2012元，订单量为60
+12月28日：销售额2123元，订单量为65
+12月29日：销售额2234元，订单量为70
+12月30日：销售额2345元，订单量为75
+12月31日：销售额2456元，订单量为80
+2023年1月1日：销售额2567元，订单量为85
+2023年1月2日：销售额2678元，订单量为90
+2023年1月3日：销售额2789元，订单量为95
+2023年1月4日：销售额2890元，订单量为100
+2023年1月5日：销售额2901元，订单量为105
+2023年1月6日：销售额3012元，订单量为110
+2023年1月7日：销售额3123元，订单量为115
+2023年1月8日：销售额3234元，订单量为120
+2023年1月9日：销售额3345元，订单量为125
+2023年1月10日：销售额3456元，订单量为130"""
+    print(is_xyzchar(resp,query))

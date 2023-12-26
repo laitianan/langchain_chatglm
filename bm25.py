@@ -17,7 +17,7 @@ import logging
 
 from doc import Doc
 
-jieba.setLogLevel(log_level=logging.INFO)
+
 
 
 class BM25Param(object):
@@ -128,12 +128,17 @@ class BM25(object):
         :return: [(doc, score), ..]
         """
         key_docindex=self.param.key_docindex
-        words = [word for word in jieba.lcut_for_search(query) if word and word not in self._stop_words]
-        indexs=set()
-        for word in words:
-            indexs=indexs.union(key_docindex[word])
 
-        indexs=list(indexs)
+        if query=="帮助":
+            indexs=[i for i in range(len(self.param.f))]
+            words=[]
+        else:
+            words = [word for word in jieba.lcut_for_search(query) if word and word not in self._stop_words]
+            indexs=set()
+            for word in words:
+                indexs=indexs.union(key_docindex[word])
+            indexs=list(indexs)
+
         score_list = []
         for index in indexs:
             score = self._cal_similarity(words, index)

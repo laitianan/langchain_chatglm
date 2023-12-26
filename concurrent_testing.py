@@ -93,11 +93,11 @@ class Presstest(object):
 
     ##函数参数解析
     def testinterface(self):
-        '''压测接口'''
+        '''函数解析'''
         global ERROR_NUM
         try:
             print('开始调接口：', datetime.datetime.now().strftime('%Y-%m-%d- %H:%M:%S:%f'))
-            user_inpt="订单查询XS2023121515590681195"
+            user_inpt="XS2023121515590681195"
             post_json=json.dumps({"funtion_id":"2114","message":[{"role": "user", "content": user_inpt}]})
             r1 = requests.post(f"http://{self.base_url}/chat_funtion_intention/completions", data=post_json)
             try:
@@ -116,11 +116,11 @@ class Presstest(object):
         ###意图识别
     def testinterface2(self):
         
-        '''压测接口'''
+        '''意图搜索'''
         global ERROR_NUM
         try:
             print('开始调接口：', datetime.datetime.now().strftime('%Y-%m-%d- %H:%M:%S:%f'))
-            post_json =json.dumps({"message" :[{"role": "user", "content": "广东省直营店最高销量多少"}]})
+            post_json =json.dumps({"message" :[{"role": "user", "content": "XS4565665656656"}]})
             r1 = requests.post(f"http://{self.base_url}/chat_intention_search/completions", data=post_json)
 
             try:
@@ -146,17 +146,47 @@ class Presstest(object):
             """
             
             message=[
-                    {"role": "user", "content":"订单xs1234565详情和在多少个城市开店(请使用幸福西饼查询信息回复我的问题)"},
+                    {"role": "user", "content":"""给你下面的意图类别,意图类别详情描述，历史对话沟通记录,
+意图类别为：
+['站点当天实时业绩查询', '门店当天实时业绩查询', '订单号查询', '站点按天查询业绩', '门店按天查询业绩', '今昨日下单对比', '新零售每天完成订单', '城市数', '近十天每日销售', '获取用户推荐商品(单个用户)', '查询过去七日内指定店铺图表数据', '查询指定商品-七天预测对比数据', '查询全部销售渠道', '商品销售量排名', '查某一天下单总量', '意图不明']
+备注意图详情描述：
+1、站点当天实时业绩查询:站点当天实时业绩查询
+2、门店当天实时业绩查询:门店当天实时业绩查询
+3、订单号查询:通过订单号查询订单详情
+4、站点按天查询业绩:站点按天查询业绩
+5、门店按天查询业绩:门店按天查询业绩
+6、今昨日下单对比:今天的订单量和昨天的订单量比较
+7、新零售每天完成订单:新零售门店每天完成的订单量汇总
+8、城市数:幸福西饼覆盖多少个城市
+9、近十天每日销售:最近十天每天的销售额
+10、获取用户推荐商品(单个用户):获取单个用户来推荐商品
+11、查询过去七日内指定店铺图表数据:查询过去七日内指定店铺图表数据
+12、查询指定商品-七天预测对比数据:查询指定商品-七天预测对比数据
+13、查询全部销售渠道:查询全部销售渠道
+14、商品销售量排名:商品销售量排名
+15、查某一天下单总量:查询具体日期的下单总量
+16、意图不明:用户随便询问的内容,当其他意图不匹配时请选择该意图
+
+对话沟通记录：
+user:幸福西饼创始人是谁
+
+请你结合备注意图详情描述和对话沟通记录录,完成user想表达一个或多个意图，意图必须从意图类别中选择,最终结果使用json格式返回,输出应该是严格按以下模式格式化的标记代码片段,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+```json
+{
+    "intention_name": list  // 意图类别,意图类别必须在提供的类别中,比如intention_name=["a","b","c"]
+}
+你的回答:
+"""}
                     #   {"role": "assistant", "content":" 单号：xs1234565，商品名称：黑森林，单价：158，数量：1，用户购买量：三千万，总价：158，配送时间：2023-11-18配送状态：结束。幸福西饼覆盖300个城市。"},
                     #   {"role": "user", "content":"用户购买量"},
                     #   {"role": "assistant", "content":"用户购买量为三千万。"},
                     # {"role": "user", "content":"谷歌的创始人是谁（请使用幸福西饼查询信息回复）"},
-                    {"role": "function", "content":" 单号：xs1234565，商品名称：黑森林，单价：158，数量：1，用户购买量：三千万，总价：158，配送时间：2023-11-18配送状态：结束。幸福西饼覆盖300个城市。"},
                 ]
 
 
-            messs=[{"role": "system", "content": system_conten}]
-            messs.extend(message)
+            # messs=[{"role": "system", "content": system_conten}]
+            # messs.extend(message)
+            messs=message
             if isinstance(messs,str):
                 # history.append({"role": "user", "content":text3})
                 history=messs
@@ -170,18 +200,14 @@ class Presstest(object):
                 "model": llm_model,
                 "messages": history,
                 "stream": False,
-                "top_p":0.
-
-
+                "top_p":0.8,
               })
             r1 = requests.post(f"{api_base}/chat/completions", headers={'Content-Type': 'application/json'},data=data)
             # print(r1.content)
-            
             try:
                 res = json.loads(r1.content.decode("utf8"))
                 content=res["choices"][0]["message"]["content"]
                 # print(f"------------------------------------")
-                
                 print("解析后参数",parse_json_markdown(content))
             except:
                 
@@ -189,8 +215,6 @@ class Presstest(object):
                 content=res["choices"][0]["message"]["content"]
                 print(content)
             return r1
-            
-
         except Exception as e:
             print(e)
             ERROR_NUM += 1
@@ -203,28 +227,82 @@ class Presstest(object):
         
         cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
         cont2="""{数量：300}"""
+        
         post_json=json.dumps({
             "funname_resp":[{"funtion_id": "2114", "resp": cont},
-                            {"funtion_id": "2123", "resp": cont2}],
+                            {"funtion_id": "2123", "resp": cont2}
+                            ],
             "message":[
-                    # {"role": "user", "content":"订单XS2023121515590681195和覆盖了多少个城市"},
-                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。关于幸福西饼覆盖的城市数量，查询详情结果如下:数量：300。感谢您的提问！"},
-                        # {"role": "user", "content":"配送时间是多少"},
+                    {"role": "user", "content":"XS2023121515590681195和幸福西饼覆盖城市"},
+                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
+                        # {"role": "user", "content":"谷歌创始人是谁"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
-                        # {"role": "user", "content":"XS2023121515590681195"},
+                        # {"role": "user", "content":"订单XS2023121515590681195"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
-                    {"role": "user", "content":"广州销量最高的店铺"},
+                    # {"role": "user", "content":"广东省有多少家直营店"},
+                ]})
+
+        # r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
+        # print(r1.content.decode("utf8"))
+        
+        
+        # cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
+        # cont2="""{数量：300}"""
+        
+        
+        cont3="""您好，幸福AI 查到相关服务：
+1、【今昨日下单对比】
+2、【站点按天查询业绩】
+3、【新零售每天完成订单】
+4、【城市数】
+5、【获取用户推荐商品(单个用户)】
+6、【查询全部销售渠道】
+7、【站点当天实时业绩查询】
+8、【订单号查询】
+9、【门店当天实时业绩查询】
+10、【查询指定商品-七天预测对比数据】
+11、【查询过去七日内指定店铺图表数据】
+12、【查某一天下单总量】
+13、【商品销售量排名】
+14、【门店按天查询业绩】
+15、【近十天每日销售】
+
+请回复对应序号，选择指定的查询服务。结束本次会话请回复0"""
+        cont4="""[{"销售额":444,"日期":"2023-12-20"},{"销售额":555,"日期":"2023-12-21"},{"销售额":666,"日期":"2023-12-22"},{"销售额":777,"日期":"2023-12-23"},{"销售额":888,"日期":"2023-12-24"},{"销售额":999,"日期":"2023-12-25"}]"""
+        cont5="""
+        您想查询幸福西饼近十天每日销售情况，以下是近十天每天的销售额详情：
+        [{"销售额":444,"日期":"2023-12-20"},{"销售额":555,"日期":"2023-12-21"},{"销售额":666,"日期":"2023-12-22"},{"销售额":777,"日期":"2023-12-23"},{"销售额":888,"日期":"2023-12-24"},{"销售额":999,"日期":"2023-12-25"}]
+        请注意，以上数据仅供参考，具体销售额可能会因各种因素而有所不同。如果您有其他问题，请随时告诉我。
+        """
+        post_json=json.dumps({
+            "funname_resp":[
+                            # {"funtion_id": "2124", "resp": cont4}
+                            ],
+            "message":[
+                    # {"role": "user", "content":"帮助"},
+                    # {"role": "assistant", "content":cont3},
+                    # {"role": "user", "content":"15"},
+                    #     {"role": "assistant", "content":cont5},
+                        {"role": "user", "content":"幸福西饼创始人是谁"},
+                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
+                        # {"role": "user", "content":"订单XS2023121515590681195"},
+                    # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
+                    # {"role": "user", "content":"广东省有多少家直营店"},
                 ]})
 
         r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
-        print(r1.content.decode("utf8"))
+
+        message=json.loads(r1.content.decode("utf8"))["message"]
+        print(message)
+
+        
 
     def testonework(self):
         '''一次并发处理单个任务'''
         i = 0
         while i < ONE_WORKER_NUM:
             i += 1
-            self.testinterface4()
+            self.testinterface()
         time.sleep(LOOP_SLEEP)
 
     def run(self):
@@ -312,7 +390,7 @@ if __name__ == '__main__':
 
     # press_url = f"http://192.168.0.11:8081/v1/chat/completions"
 
-    THREAD_NUM =100  # 并发线程总数
+    THREAD_NUM =1  # 并发线程总数
     ONE_WORKER_NUM = 1  # 每个线程的循环次数
     LOOP_SLEEP = 0.1  # 每次请求时间间隔(秒)
     ERROR_NUM = 0  # 出错数
@@ -340,7 +418,7 @@ if __name__ == '__main__':
     #函数参数解析
     for i in range(1):
         t0 = time.time()
-        obj.testinterface4()
+        obj.testinterface2()
         t02 = time.time()
         print("总耗时(秒):", t02 - t0)
     # print(content)
