@@ -168,9 +168,9 @@ class Presstest(object):
 16、意图不明:用户随便询问的内容,当其他意图不匹配时请选择该意图
 
 对话沟通记录：
-user:幸福西饼创始人是谁
+user:广东省有几家店铺
 
-请你结合备注意图详情描述和对话沟通记录录,完成user想表达一个或多个意图，意图必须从意图类别中选择,最终结果使用json格式返回,输出应该是严格按以下模式格式化的标记代码片段,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+请你结合备注意图详情描述和对话沟通记录录,完成user想表达一个或多个意图,当意图不明时,通过聊天记录去检索意图详情匹配个或多个意图，意图必须从意图类别中选择,最终结果使用json格式返回,输出应该是严格按以下模式格式化的标记代码片段,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 ```json
 {
     "intention_name": list  // 意图类别,意图类别必须在提供的类别中,比如intention_name=["a","b","c"]
@@ -200,7 +200,7 @@ user:幸福西饼创始人是谁
                 "model": llm_model,
                 "messages": history,
                 "stream": False,
-                "top_p":0.8,
+                "top_p":0.,
               })
             r1 = requests.post(f"{api_base}/chat/completions", headers={'Content-Type': 'application/json'},data=data)
             # print(r1.content)
@@ -227,23 +227,26 @@ user:幸福西饼创始人是谁
         
         cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
         cont2="""{数量：300}"""
-        
+        cont3="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
         post_json=json.dumps({
-            "funname_resp":[{"funtion_id": "2114", "resp": cont},
-                            {"funtion_id": "2123", "resp": cont2}
+            "funname_resp":[
+                {"funtion_id": "2114", "resp": cont},
+                            {"funtion_id": "2123", "resp": cont2},
+                            {"funtion_id": "2130", "resp": cont3}
+                            
                             ],
             "message":[
-                    {"role": "user", "content":"XS2023121515590681195和幸福西饼覆盖城市"},
+                    # {"role": "user", "content":"XS2023121515590681195"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
-                        # {"role": "user", "content":"谷歌创始人是谁"},
+                        {"role": "user", "content":"腾讯创始人是谁"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
                         # {"role": "user", "content":"订单XS2023121515590681195"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
                     # {"role": "user", "content":"广东省有多少家直营店"},
                 ]})
 
-        # r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
-        # print(r1.content.decode("utf8"))
+        r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
+        print(r1.content.decode("utf8"))
         
         
         # cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
@@ -290,10 +293,10 @@ user:幸福西饼创始人是谁
                     # {"role": "user", "content":"广东省有多少家直营店"},
                 ]})
 
-        r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
+        # r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
 
-        message=json.loads(r1.content.decode("utf8"))["message"]
-        print(message)
+        # message=json.loads(r1.content.decode("utf8"))["message"]
+        # print(message)
 
         
 
@@ -396,7 +399,7 @@ if __name__ == '__main__':
     ERROR_NUM = 0  # 出错数
     model="Qwen-14B-Chat-Int4"
     base_url="127.0.0.1:8084"
-    # base_url="61.141.232.106:8084"
+    base_url="61.141.232.106:8084"
     obj = Presstest(model,base_url)
     t1 = time.time()
     ##openai 接口
@@ -418,7 +421,7 @@ if __name__ == '__main__':
     #函数参数解析
     for i in range(1):
         t0 = time.time()
-        obj.testinterface2()
+        obj.testinterface4()
         t02 = time.time()
         print("总耗时(秒):", t02 - t0)
     # print(content)

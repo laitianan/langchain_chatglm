@@ -158,10 +158,10 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
             continue
         mc = role.content.strip()
         if re.findall(r"XS[a-zA-Z0-9]+", mc):
-            role.content = mc + "(查看该订单号详情,请根据幸福西饼已知信息回复我的问题)"
+            role.content = mc + "(查看该订单号详情,请仅仅根据幸福西饼已知信息回复我的问题相关业务)"
         else:
             if i==len(mess)-1:
-                role.content = mc + "(回复详情,请根据幸福西饼已知信息回复我的问题)"
+                role.content = mc + "(回复详情,请仅仅根据幸福西饼已知信息回复我的问题相关业务)"
 
     history = merge_message(mess)
     top_p = 0.
