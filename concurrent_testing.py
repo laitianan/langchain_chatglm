@@ -228,6 +228,7 @@ user:广东省有几家店铺
         cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
         cont2="""{数量：300}"""
         cont3="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
+        cont3="""需要告知[店铺名称，日期]才可以查询"""
         post_json=json.dumps({
             "funname_resp":[
                 {"funtion_id": "2114", "resp": cont},
@@ -236,13 +237,13 @@ user:广东省有几家店铺
                             
                             ],
             "message":[
-                    # {"role": "user", "content":"XS2023121515590681195"},
-                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
-                        {"role": "user", "content":"腾讯创始人是谁"},
+                    {"role": "user", "content":"XS2023121515590681195"},
+                        {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
+                        {"role": "user", "content":"商品销量排名"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
                         # {"role": "user", "content":"订单XS2023121515590681195"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
-                    # {"role": "user", "content":"广东省有多少家直营店"},
+                    # {"role": "user", "content":"你好"},
                 ]})
 
         r1 = requests.post(f"http://{self.base_url}/beautify_chat/completions", data=post_json)
@@ -286,7 +287,7 @@ user:广东省有几家店铺
                     # {"role": "assistant", "content":cont3},
                     # {"role": "user", "content":"15"},
                     #     {"role": "assistant", "content":cont5},
-                        {"role": "user", "content":"幸福西饼创始人是谁"},
+                        {"role": "user", "content":"幸福西饼覆盖城市数"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
                         # {"role": "user", "content":"订单XS2023121515590681195"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
@@ -399,7 +400,7 @@ if __name__ == '__main__':
     ERROR_NUM = 0  # 出错数
     model="Qwen-14B-Chat-Int4"
     base_url="127.0.0.1:8084"
-    base_url="61.141.232.106:8084"
+    # base_url="61.141.232.106:8084"
     obj = Presstest(model,base_url)
     t1 = time.time()
     ##openai 接口

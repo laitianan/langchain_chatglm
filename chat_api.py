@@ -144,7 +144,7 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
     global  toos_dict,llm
     funname_resp = request.funname_resp
 
-    query="\n".join([f"{i+1}.{toos_dict[res.funtion_id].description},详情结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
+    query="\n".join([f"{i+1}.查询业务：{toos_dict[res.funtion_id].description},详情结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
     if query=="":
         query="未查询到任何信息，请咨询其他业务"
 
@@ -158,10 +158,10 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
             continue
         mc = role.content.strip()
         if re.findall(r"XS[a-zA-Z0-9]+", mc):
-            role.content = mc + "(查看该订单号详情,请仅仅根据幸福西饼已知信息回复我的问题相关业务)"
+            role.content = mc + "(查看订单号详情,请仅仅根据幸福西饼已知查询业务信息回复我的问题相关业务)"
         else:
             if i==len(mess)-1:
-                role.content = mc + "(回复详情,请仅仅根据幸福西饼已知信息回复我的问题相关业务)"
+                role.content = mc + "(回复详情,请仅仅根据幸福西饼已知查询业务信息回复我的问题相关业务)"
 
     history = merge_message(mess)
     top_p = 0.
