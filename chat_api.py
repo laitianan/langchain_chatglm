@@ -1,30 +1,29 @@
 
-import time
-import asyncio
-from logging.handlers import RotatingFileHandler
-import re
 
-# from shared import SharedObject
-from config import api_base, saveinterfacepath
-import uvicorn
-from pydantic import BaseModel, Field
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import logging
+import re
+import time
 from functools import wraps
+from logging.handlers import RotatingFileHandler
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from langchain.agents import AgentExecutor
 
+from MyOpenAI import myOpenAi, call_qwen_funtion
 from bm25 import BM25
+from config import saveinterfacepath
 from doc import Doc
 from intentAgent_model import IntentAgent
+from prompt_helper import init_all_fun_prompt, FUNTION_CALLING_FORMAT_INSTRUCTIONS
 from redis_manger import get_version, set_version
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
-from MyOpenAI import myOpenAi, call_qwen_funtion
-from prompt_helper import init_all_fun_prompt, FUNTION_CALLING_FORMAT_INSTRUCTIONS
 from utils import load_interface_template, save_interface_template, is_true_number, is_xxCH
-import time
-from fastapi import  Request
-from fastapi.responses import JSONResponse
-import logging
+
 logger = logging.getLogger()
 
 logger.setLevel(logging.INFO)
@@ -43,7 +42,6 @@ from api_protocol import (
     ChatCompletionResponse,
     FunCompletionRequest,
     ChatResponse,
-    DeleteResponse,
     TemplateResponse,
     Intention_Search_Response,
     Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp
@@ -68,8 +66,7 @@ async def unicorn_exception_handler(request: Request, exc: UnicornException):
 
     return JSONResponse(
         status_code=408,
-        content={"status": 402,"message":f"{exc.name}"},
-    )
+        content={"status": 402,"message":f"{exc.name}"},)
 
 def init_run():
     global  agent_exec,toos_dict,llm,initparam,search
@@ -109,11 +106,12 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
     async def wrapper( *args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
         global agent_exec, toos_dict, llm, initparam, search, current_version
         try:
+            start_time = time.time()  # 程序开始时间
             version=get_version()
             if current_version != version:
                 agent_exec, toos_dict, llm, initparam, search = init_run()
                 current_version=version
-            start_time = time.time()  # 程序开始时间
+
             # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
             end_time = time.time()  # 程序结束时间
@@ -126,9 +124,6 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
         return res
 
     return wrapper
-
-
-
 
 @app.post("/chat/completions", response_model=ChatResponse)
 @raise_UnicornException
@@ -174,7 +169,7 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
         print(i, resp)
         top_p+=0.1
         i+=1
-        if "？" not in resp and "?" not in resp and is_true_number(resp,history)  and not is_xxCH(resp,history) :
+        if is_true_number(resp,history)  and not is_xxCH(resp,history) :
             break
         else:
             response = call_qwen_funtion(mess,top_p=top_p)
@@ -214,8 +209,6 @@ async  def get_all_template():
     initparam = load_interface_template(saveinterfacepath)
     return TemplateResponse(status=200,message="获取模板成功",template=initparam)
 
-
-
 def merge_message(message):
 
     if isinstance(message,str):
@@ -229,10 +222,19 @@ def merge_message(message):
     return history
 
 
+def inject_order_detail(request):
+    for role in request.message:
+        content = role.content.strip()
+        order = re.findall(r"XS[a-zA-Z0-9]+", content)
+        if len(order) > 0 and len(order[0])>=5:
+            order = order[0]
+            role.content=role.content.replace(order, f"{order}(订单号)")
+
 @app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
 @raise_UnicornException
 async def chat_funtion_intention(request: FunCompletionRequest):
     global  agent_exec,toos_dict
+    inject_order_detail(request)
     if request.funtion_id is None or request.funtion_id=='':
         query=merge_message(request.message)
         fun_id,message=agent_exec.run(query)
@@ -240,64 +242,56 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         return ChatCompletionResponse(status=200,funtion_id=fun_id,message=message)
     else:
         tool = toos_dict[request.funtion_id]
-        for role in request.message:
-            content=role.content.strip()
-            order=re.findall(r"XS[a-zA-Z0-9]+", content)
-            if len(order)>0:
-                order=order[0]
-                role.content=content+f"({order}为订单号)"
         query = merge_message(request.message)
         _, message = tool._run(query)
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
 
+async  def intention_search(request):
+    global agent_exec, toos_dict,search
+    query = request.message[-1].content.strip()
+    inject_order_detail(request)
+    mess = merge_message(request.message)
+    m = re.findall(r"^XS[a-zA-Z0-9]+$", query)
+    if len(query) >= 5 and len(m) > 0 and len(m[0]) == len(query):
+        docs1 = search.calc_similarity_rank("订单号查询")
+        docs2 = []
+    elif query == "帮助":
+        docs1 = search.calc_similarity_rank("帮助")
+        docs2 = []
+        mess="帮助"
+    else:
+        docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
+
+    docs1, docs2=set(docs1),set(docs2)
+    d=docs2.intersection(docs1)
+    docs1=docs1-d
+    docs=list(docs2)+list(docs1)
+    return docs,mess
 @app.post("/chat_multi_intention/completions", response_model=Chat_LinksResponse)
 @raise_UnicornException
 async def chat_multi_intention(request: FunCompletionRequest):
-    global  agent_exec,toos_dict
-    mess = merge_message(request.message)
-    docs = await agent_exec.agent.choose_tools(mess)
+    global agent_exec, toos_dict,search
+    docs,mess=await  intention_search(request)
     tools=[]
+    docs.sort(key=lambda x: x.funtion_id)
+
     for doc in docs:
         tool = toos_dict[doc.funtion_id]
-        id_, message = tool._run(mess)
-        tools.append(LinksResp(funtion_id=doc.funtion_id,name=doc.name,message=message))
-    return Chat_LinksResponse(status=200, tool=tools)
+        tools.append(tool)
+
+    tools_res=await asyncio.gather(*[task._arun(mess) for task in tools ])
+    ret=[]
+    for doc,tool_res in zip(docs,tools_res):
+        ret.append(LinksResp(funtion_id=doc.funtion_id,fro=doc.fro,name=doc.name,message=tool_res[1]))
+    return Chat_LinksResponse(status=200, tools=ret)
 
 
 
 @app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
 @raise_UnicornException
 async def chat_intention_search(request: ChatCompletionRequest):
-    global  search,agent_exec
-
-    for e in request.message:
-        order = re.findall(r"XS[a-zA-Z0-9]+", e.content)
-        if len(order) > 0 and not re.match(r"^XS[a-zA-Z0-9]+$", e.content):
-            order = order[0]
-            e.content = e.content + f"({order}为订单号)"
-
-    mess=merge_message(request.message)
-    query=request.message[-1].content.strip()
-    m = re.findall(r"^XS[a-zA-Z0-9]+$", query)
-    if len(m) > 0 and len(m[0])==len(query) and len(query)>=5:
-        docs1=search.calc_similarity_rank("订单号查询")
-        docs2 = []
-    elif query=="帮助":
-        docs1 = search.calc_similarity_rank("帮助")
-        docs2 = []
-    else:
-        docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
-        if len(docs2)!=0 and len(query.replace(" ",""))>6 :
-            docs1=[]
-    docs1, docs2=set(docs1),set(docs2)
-    d=docs2.intersection(docs1)
-
-    docs2=docs2-d
-    docs1=docs1-d
-    d=list(d)
-    for e in d:
-        e.fro="AI"
-    docs=list(d)+list(docs2)+list(docs1)
+    global agent_exec, toos_dict,search
+    docs, mess = await  intention_search(request)
     funtions=[Funtion(id=doc.funtion_id,name=doc.name,fro=doc.fro) for doc in docs]
     funtions.sort(key=lambda  x:x.id)
     return Intention_Search_Response(status=200,funtions=funtions)

@@ -84,7 +84,7 @@ class IntentAgent(BaseSingleActionAgent):
         self.merge_summary()
         user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
         resp=[]
-        self.llm.top_p=0.0
+        self.llm.top_p=0.1
         for i in range(3):
             try:
                 resp = self.llm.predict(user_input)

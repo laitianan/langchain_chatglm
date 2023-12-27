@@ -225,23 +225,22 @@ user:广东省有几家店铺
     def testinterface4(self):
 
         
-        cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
+        cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00到21:00:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
         cont2="""{数量：300}"""
         cont3="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
-        cont3="""需要告知[店铺名称，日期]才可以查询"""
+        cont3="""店铺名称、日期不详，需要用户提供"""
         post_json=json.dumps({
             "funname_resp":[
-                {"funtion_id": "2114", "resp": cont},
+                            {"funtion_id": "2114", "resp": cont },
                             {"funtion_id": "2123", "resp": cont2},
                             {"funtion_id": "2130", "resp": cont3}
-                            
                             ],
             "message":[
-                    {"role": "user", "content":"XS2023121515590681195"},
-                        {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
-                        {"role": "user", "content":"商品销量排名"},
+                    {"role": "user", "content":"XS2023121515590681195和商品销量排名、马克斯是谁"},
+                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
+                        # {"role": "user", "content":"您好，根据您提供的订单号XS2023121515590681195，可以查询到该订单的配送时间是2023-12-15 19:30:00到21:00:00，订单副号是1185249689478250496，订单状态是待备货。关于商品销售量排名，您需要提供具体的日期才能查询，例如您想查询哪一天的商品销售量排名。"},
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
-                        # {"role": "user", "content":"订单XS2023121515590681195"},
+                        # {"role": "user", "content":"2023-12-25"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
                     # {"role": "user", "content":"你好"},
                 ]})
@@ -306,7 +305,7 @@ user:广东省有几家店铺
         i = 0
         while i < ONE_WORKER_NUM:
             i += 1
-            self.testinterface()
+            self.testinterface4()
         time.sleep(LOOP_SLEEP)
 
     def run(self):
@@ -394,13 +393,13 @@ if __name__ == '__main__':
 
     # press_url = f"http://192.168.0.11:8081/v1/chat/completions"
 
-    THREAD_NUM =1  # 并发线程总数
+    THREAD_NUM =10  # 并发线程总数
     ONE_WORKER_NUM = 1  # 每个线程的循环次数
     LOOP_SLEEP = 0.1  # 每次请求时间间隔(秒)
     ERROR_NUM = 0  # 出错数
     model="Qwen-14B-Chat-Int4"
     base_url="127.0.0.1:8084"
-    # base_url="61.141.232.106:8084"
+    base_url="61.141.232.106:8084"
     obj = Presstest(model,base_url)
     t1 = time.time()
     ##openai 接口

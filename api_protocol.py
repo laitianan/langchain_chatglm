@@ -4,7 +4,6 @@ class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system","function"]
     content: str
 
-
 class DeltaMessage(BaseModel):
     role: Optional[Literal["user", "assistant", "system","function"]] = None
     api_id:str
@@ -77,12 +76,13 @@ class ChatCompletionResponse(BaseModel):
 class LinksResp(BaseModel):
     funtion_id:Optional[str]=""
     name:str
+    fro:str
     role: Optional[str]="assistant"
     message: str
 
 class Chat_LinksResponse(BaseModel):
     status: int
-    tool:List[LinksResp]
+    tools:List[LinksResp]
 
 
 class Funtion(BaseModel):

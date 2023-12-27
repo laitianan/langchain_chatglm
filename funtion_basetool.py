@@ -26,4 +26,4 @@ class functional_Tool(BaseTool):
             query: str,
             run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
     ) -> str:
-        raise NotImplementedError("APITool does not support async")
+        return self._call_func(query)

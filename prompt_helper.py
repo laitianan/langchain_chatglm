@@ -16,7 +16,7 @@ api参数说明：
 聊天记录：
 {user_input}
 
-请你结合当前系统背景、参数说明和聊天记录,完成user表达的api参数值的提取,其中时间相关字段根据系统背景推理，而其他字段不能根据时间推理比如订单号,严格禁止捏造user聊天未提到参数值,最终结果使用json格式返回参数说明的所需字段名称跟值,比如{{"a":"a","b":"b"}},未知参数请返回null,且不能构建新的字段名称
+请你结合当前系统背景、参数说明和聊天记录,完成user表达的api参数值的提取,其中时间相关字段根据系统背景推理，而其他字段不能根据时间推理比如订单号,严格禁止捏造user聊天未提到参数值,最终结果使用json格式返回参数说明的所需字段名称跟值,未知参数请返回null,比如{parm_str},且不能构建新的字段名称
 你的回答:
 """
 
@@ -28,7 +28,7 @@ def create_fun_prompt(param: Interface) -> PromptTemplate:
     format_instructions=[f"{row.name} |{row.type} | {row.description},默认值为null,严格禁止捏造user问题无关参数值" for row in response_schemas]
     format_instructions="\n".join(format_instructions)
     prompt = PromptTemplate(
-        input_variables=["user_input", "current_time", "current_date","yesterday","before_yesterday"],
+        input_variables=["user_input", "current_time", "current_date","yesterday","before_yesterday","parm_str"],
         partial_variables={"format_instructions": format_instructions},
         template=FUNTION_FORMAT_INSTRUCTIONS
     )
@@ -54,7 +54,7 @@ INTENT_FORMAT_MULTI_INSTRUCTIONS: str = """
 对话沟通记录：
 {user_input}
 
-请你结合备注意图详情描述和对话沟通记录录,识别user想表达一个或多个意图类别,意图必须从意图类别中选择,最终结果使用json格式返回,输出应该是严格按以下模式格式化的标记代码片段,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
+请你结合备注意图详情描述和对话沟通记录,识别user想表达一个或多个意图类别,意图必须从意图类别中选择,最终结果使用json格式返回,输出应该是严格按以下模式格式化的标记代码片段,必须包括开头和结尾的" ' ' ' json"和" ' ' ' ":
 ```json
 {{
     "intention_name": list  // 意图类别,意图类别必须在提供的类别中,比如intention_name=["a","b","c"]
@@ -85,23 +85,23 @@ INTENT_FORMAT_INSTRUCTIONS: str = """
 
 FUNTION_CALLING_FORMAT_INSTRUCTIONS = """
 幸福西饼业务主要分布在全国各个城市,请根据幸福西饼已知信息回答用户关于幸福西饼的问题，
-幸福西饼已知查询业务信息：
+幸福西饼已知信息：
 {content},
-请结合幸福西饼已知查询业务信息组织语言只回复用户相关问题,可能存在幸福西饼已知信息与用户问题无关，当问题模糊时候，你可以回复相关已知查询业务信息的详情，
+请结合幸福西饼已知信息组织语言只回复用户相关问题,可能存在幸福西饼已知信息与用户问题无关，当问题模糊时候，你可以回复相关已知信息的详情，
 未能解答回复或跟幸福西饼无关问题请直接回复:未能理解你的问题，请尝试咨询其他业务,
 举例：
 用户问题：查询习近平是出生日期是多少和广东省的最高GDP是多少
 你的回复：未查到信息，请尝试咨询其他业务（跟幸福西饼无关问题无法解答）
 
 用户问题：幸福西饼创始人是谁
-你的回复：未查到信息，请尝试咨询其他业务（已知查询业务信息无法解答）
+你的回复：未查到信息，请尝试咨询其他业务（已知信息无法解答）
 
 用户问题：苹果手机每年的销量多少
 你的回复：未查到信息，请尝试咨询其他业务（跟幸福西饼无关问题无法解答）
 
 用户问题：核销苹果账单
 你的回复：未查到信息，请尝试咨询其他业务（跟幸福西饼无关问题无法解答）
-请你使用客服语气回复用户问题:
+你的回复:
 """
 
 
