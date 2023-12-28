@@ -643,7 +643,7 @@ def _get_args():
         "-c",
         "--checkpoint-path",
         type=str,
-        default="/data/laitianan/qwen-14b-4bit",
+        default="/data/laitianan/Qwen-14B-Chat-Int4",
         help="Checkpoint name or path, default to %(default)r",
     )
 

@@ -1,11 +1,5 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
-"""
-@author: juzipi
-@file: bm25.py
-@time:2022/04/16
-@description:
-"""
 import collections
 import math
 import os
