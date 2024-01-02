@@ -225,20 +225,25 @@ user:广东省有几家店铺
     def testinterface4(self):
 
         
-        cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00到21:00:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
-        cont2="""{数量：300}"""
-        cont3="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
-        cont3="""店铺名称、日期不详，需要用户提供"""
+        # cont="""{"订单号":"XS2023121515590681195","配送时间":"2023-12-15 19:30:00到21:00:00","订单id":1185249689478250496,"订单状态":"待备货"}"""
+        cont2="""需要用户提供[订单号]，才可查询"""
+        # cont="""订单号不详，需要用户提供"""
+        cont3="""需要用户提供[日期]，才可查询"""
+        
         post_json=json.dumps({
             "funname_resp":[
-                            {"funtion_id": "2114", "resp": cont },
-                            {"funtion_id": "2123", "resp": cont2},
-                            {"funtion_id": "2130", "resp": cont3}
+                            {"funtion_id": "2114", "resp": cont2 },
+                            # {"funtion_id": "2123", "resp": cont2},
+                            {"funtion_id": "2122", "resp": cont3}
                             ],
+            
+            
+    
+            
             "message":[
-                    {"role": "user", "content":"XS2023121515590681195和商品销量排名、马克斯是谁"},
-                        # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00，订单状态是\"待备货\"。"},
-                        # {"role": "user", "content":"您好，根据您提供的订单号XS2023121515590681195，可以查询到该订单的配送时间是2023-12-15 19:30:00到21:00:00，订单副号是1185249689478250496，订单状态是待备货。关于商品销售量排名，您需要提供具体的日期才能查询，例如您想查询哪一天的商品销售量排名。"},
+                    {"role": "user", "content":"查询订单"},
+                        {"role": "assistant", "content":" 请问您的订单号是多少？"},
+                        {"role": "user", "content":"XS2023121515590681195"}
                         # {"role": "assistant", "content":"您好，订单XS2023121515590681195的配送时间是2023-12-15 19:30:00。感谢您的提问！"},
                         # {"role": "user", "content":"2023-12-25"},
                     # {"role": "assistant", "content":"未查到信息，请尝试咨询其他业务。"},
@@ -430,4 +435,16 @@ if __name__ == '__main__':
     print("总耗时(秒):", t2 - t1)
 
 
-
+# curl -X 'POST' \
+#   'http://127.0.0.1:8084/chat/completions' \
+#   -H 'accept: application/json' \
+#   -H 'Content-Type: application/json' \
+#   -H "Authorization:Bearer laitianan2"   \
+#   -d '{
+#   "message": [
+#     {
+#       "role": "user",
+#       "content": "HI"
+#     }
+#   ]
+# }'

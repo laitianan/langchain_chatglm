@@ -1,19 +1,19 @@
-
-
 import asyncio
 import logging
 import re
 import time
 from functools import wraps
 from logging.handlers import RotatingFileHandler
+from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain.agents import AgentExecutor
-
+import config
 from MyOpenAI import myOpenAi, call_qwen_funtion
 from bm25 import BM25
 from config import saveinterfacepath
@@ -25,7 +25,6 @@ from tool_model import Model_Tool, Unknown_Intention_Model_Tool
 from utils import load_interface_template, save_interface_template, is_true_number, is_xxCH
 
 logger = logging.getLogger()
-
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter(
     "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
@@ -33,8 +32,8 @@ formatter = logging.Formatter(
 file_handler = RotatingFileHandler("./data/chat_api.log", 'a', 10*1024*1024, 360,encoding="utf-8")
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-
 app = FastAPI()
+get_bearer_token = HTTPBearer(auto_error=False)
 from api_protocol import (
     InitInterfaceResponse,
     InitInterfaceRequest,
@@ -44,8 +43,7 @@ from api_protocol import (
     ChatResponse,
     TemplateResponse,
     Intention_Search_Response,
-    Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp
-
+    Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp, Full_CompletionRequest
 )
 app.add_middleware(
     CORSMiddleware,
@@ -54,20 +52,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-
 class UnicornException(Exception):
     def __init__(self, name: str):
         self.name = name
-
 @app.exception_handler(UnicornException)
 async def unicorn_exception_handler(request: Request, exc: UnicornException):
-
     return JSONResponse(
-        status_code=408,
+        status_code=401,
         content={"status": 402,"message":f"{exc.name}"},)
 
+
+####启动程序,初始化全局变量
 def init_run():
     global  agent_exec,toos_dict,llm,initparam,search
     initparam = load_interface_template(saveinterfacepath)
@@ -82,7 +77,6 @@ def init_run():
             sub_param_type={e.name:e.type for e in param.inputParams}
             toos_dict[param.id]=Model_Tool(name=param.name,description=param.functionDesc,id=param.id,llm=llm,prompt_dict=prompt_dict,sub_param_type=sub_param_type)
             docs.append(Doc(funtion_id=param.id, name=param.name))
-    # search = Query_Search(docs)
     if len(docs)==0:
         search=None
         agent_exec=None
@@ -99,9 +93,7 @@ def init_run():
 
 agent_exec,toos_dict,llm,initparam,search=init_run()
 current_version=get_version()
-
 def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException 的装饰器函数，它接受一个参数 func这个 func 就是即将要被修饰的函数
-
     @wraps(func)
     async def wrapper( *args, **kwargs):  # 在 raise_UnicornException() 函数内部，定义一个名为 wrapper() 的闭包函数
         global agent_exec, toos_dict, llm, initparam, search, current_version
@@ -111,21 +103,36 @@ def raise_UnicornException(func):  # 定义一个名为 raise_UnicornException �
             if current_version != version:
                 agent_exec, toos_dict, llm, initparam, search = init_run()
                 current_version=version
-
-            # logging.info(f"接口：{func.__name__}，前端参数为：{args} {kwargs}")
             res = await func(*args, **kwargs)
-            end_time = time.time()  # 程序结束时间
-            run_time = end_time - start_time  # 程序的运行时间，单位为秒
-            logging.info(f"接口：{func.__name__},前端参数为：{args} {kwargs},运行时间：{run_time},返回值：{res}")
+            ###认证机制不记录参数
+            if func.__name__!="check_api_key" :
+                end_time = time.time()  # 程序结束时间
+                run_time = end_time - start_time  # 程序的运行时间，单位为秒
+                logging.info(f"接口：{func.__name__},前端参数为：{args} {kwargs},运行时间：{run_time},返回值：{res}")
+        except HTTPException as e:
+            info = str(e.detail)
+            logging.info(f"接口：{func.__name__}，接口异常错误提示：{info}")
+            raise UnicornException(name=info)
         except  Exception as e:
             info=str(e)
             logging.info(f"接口：{func.__name__}，接口异常错误提示：{info}")
             raise  UnicornException(name=info)
         return res
-
     return wrapper
 
-@app.post("/chat/completions", response_model=ChatResponse)
+@raise_UnicornException
+async def check_api_key(
+    auth: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_token),
+) -> str:
+    if config.api_keys and config.check_api_key :
+        if auth is None or (token := auth.credentials) not in config.api_keys:
+            raise HTTPException(status_code=401,detail="invalid Authorization api_key")
+        return True
+    else:
+        return False
+
+@app.post("/chat/completions", response_model=ChatResponse,summary="跟OPENAI 接口一样,无业务处理", dependencies=[Depends(check_api_key)])
+# @app.post("/chat/completions", response_model=ChatResponse,summary="跟OPENAI 接口一样,无业务处理")
 @raise_UnicornException
 async def chat(request: ChatCompletionRequest):
     response=call_qwen_funtion(request.message)
@@ -133,7 +140,7 @@ async def chat(request: ChatCompletionRequest):
     return ChatResponse(status=200,message=resp)
 
 
-@app.post("/beautify_chat/completions", response_model=ChatResponse)
+@app.post("/beautify_chat/completions", response_model=ChatResponse,summary="调用函数，产生的结果，由AI自动组织语言回复")
 @raise_UnicornException
 async def beautify_chat(request: Beautify_ChatCompletionRequest):
     global  toos_dict,llm
@@ -182,7 +189,7 @@ async def beautify_chat(request: Beautify_ChatCompletionRequest):
 
 
 
-@app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse)
+@app.post("/init_funtion_template/completions", response_model=InitInterfaceResponse,summary="初始化函数模板")
 @raise_UnicornException
 async def init_funtion_template(request: InitInterfaceRequest):
     global  initparam,current_version
@@ -203,7 +210,7 @@ async def init_funtion_template(request: InitInterfaceRequest):
     return res
 
 
-@app.post("/get_all_template/completions", response_model=TemplateResponse)
+@app.post("/get_all_template/completions", response_model=TemplateResponse,summary="获取上传的所有模板")
 @raise_UnicornException
 async  def get_all_template():
     initparam = load_interface_template(saveinterfacepath)
@@ -230,7 +237,7 @@ def inject_order_detail(request):
             order = order[0]
             role.content=role.content.replace(order, f"{order}(订单号)")
 
-@app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse)
+@app.post("/chat_funtion_intention/completions", response_model=ChatCompletionResponse,summary="意图识别跟函数解析，带funtion_id参数就是函数参数解析，否则就是意图识别")
 @raise_UnicornException
 async def chat_funtion_intention(request: FunCompletionRequest):
     global  agent_exec,toos_dict
@@ -241,7 +248,10 @@ async def chat_funtion_intention(request: FunCompletionRequest):
         fun_id=fun_id or ""
         return ChatCompletionResponse(status=200,funtion_id=fun_id,message=message)
     else:
-        tool = toos_dict[request.funtion_id]
+
+        tool = toos_dict.get(request.funtion_id, None)
+        if not tool:
+            raise  HTTPException(status_code=401,detail=f"invalid funtion_id:{request.funtion_id} 不存在")
         query = merge_message(request.message)
         _, message = tool._run(query)
         return ChatCompletionResponse(status=200, funtion_id=request.funtion_id, message=message)
@@ -259,6 +269,10 @@ async  def intention_search(request):
         docs1 = search.calc_similarity_rank("帮助")
         docs2 = []
         mess="帮助"
+    elif "#" in query and query.index("#")==0:
+        docs1 = search.calc_similarity_rank(query)
+        docs2 = []
+        mess = query
     else:
         docs1, docs2 = await asyncio.gather(search.cal_similarity_rank(query), agent_exec.agent.choose_tools(mess))
 
@@ -267,9 +281,9 @@ async  def intention_search(request):
     docs1=docs1-d
     docs=list(docs2)+list(docs1)
     return docs,mess
-@app.post("/chat_multi_intention/completions", response_model=Chat_LinksResponse)
+@app.post("/chat_multi_intention/completions", response_model=Chat_LinksResponse,summary="多意图识别并函数解析")
 @raise_UnicornException
-async def chat_multi_intention(request: FunCompletionRequest):
+async def chat_multi_intention(request: Full_CompletionRequest):
     global agent_exec, toos_dict,search
     docs,mess=await  intention_search(request)
     tools=[]
@@ -287,7 +301,7 @@ async def chat_multi_intention(request: FunCompletionRequest):
 
 
 
-@app.post("/chat_intention_search/completions", response_model=Intention_Search_Response)
+@app.post("/chat_intention_search/completions", response_model=Intention_Search_Response,summary="多意图识别")
 @raise_UnicornException
 async def chat_intention_search(request: ChatCompletionRequest):
     global agent_exec, toos_dict,search

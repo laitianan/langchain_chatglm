@@ -122,10 +122,10 @@ def call_qwen_funtion(messages,top_p=None):
             model=llm_model, messages=messages, functions=functions
         )
     else:
-        if not top_p:
+        if  top_p or top_p==0:
             response = openai.ChatCompletion.create(model=llm_model, messages=messages,top_p=top_p)
         else:
-            response = openai.ChatCompletion.create(model=llm_model, messages=messages)
+            response = openai.ChatCompletion.create(model=llm_model, messages=messages,top_p=0.8)
     return response
 
 if __name__ == '__main__':

@@ -200,9 +200,20 @@ def is_true_number(text, query):
                     res = False
     return res
 
+def have_Ch(string):
+    p=r".*[\u4e00-\u9fa5]+.*"
+    match=re.match(p,string)
+    if match:
+        return True
+    else:
+        return False
+
+
 if __name__=="__main__":
     # v_string=""
-    vstring="""幸福西饼覆盖多少个城市,详情结果如下:3.{"商品名称":"四重奏","排名":"NO1"},4.{"商品名称":"甜心莓莓","排名":"NO2"}]"""
-    query_conten="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
-    print(is_xxCH(vstring,query_conten))
-    pass
+    # vstring="""幸福西饼覆盖多少个城市,详情结果如下:3.{"商品名称":"四重奏","排名":"NO1"},4.{"商品名称":"甜心莓莓","排名":"NO2"}]"""
+    # query_conten="""[{"商品名称":"四重奏","排名":"NO1"},{"商品名称":"甜心莓莓","排名":"NO2"}]"""
+    # print(is_xxCH(vstring,query_conten))
+    # pass
+
+    print(have_Ch("122323"))

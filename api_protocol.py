@@ -67,6 +67,10 @@ class FunCompletionRequest(BaseModel):
     funtion_id:Optional[str]= ""
     message:Union[List[ChatMessage],str]
 
+
+class Full_CompletionRequest(BaseModel):
+    message:Union[List[ChatMessage],str]
+
 class ChatCompletionResponse(BaseModel):
     status: int
     funtion_id:Optional[str]=""

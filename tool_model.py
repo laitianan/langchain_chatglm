@@ -6,7 +6,7 @@ from langchain import LLMChain
 from langchain.base_language import BaseLanguageModel
 from config import topp_
 from funtion_basetool import functional_Tool
-from utils import parse_json_markdown, get_current_weekday, is_xyzchar
+from utils import parse_json_markdown, get_current_weekday, is_xyzchar, have_Ch
 
 
 class Model_Tool(functional_Tool):
@@ -24,6 +24,9 @@ class Model_Tool(functional_Tool):
 
         sub_param = {k: None for k, v in self.sub_param_type.items()}
         id = self.id
+
+        if "#" in query and query.index("#") == 0:
+            return self.id, json.dumps(sub_param, ensure_ascii=False)
 
         if len(sub_param) <= 0 or len(query) <= 7 or query == "帮助":
             return self.id, json.dumps(sub_param, ensure_ascii=False)
@@ -61,6 +64,9 @@ class Model_Tool(functional_Tool):
                     if self.sub_param_type[k].lower() == "string" and isinstance(sub_param[k], list):
                         if len(sub_param[k]) > 0:
                             sub_param[k] = str(sub_param[k][0])
+
+                    if k.lower() in ["orderno","shopid"] and have_Ch(v):
+                        sub_param[k] = None
                 break
                 # ##超过一半的参数被提取出来之后，就不再启动重试机制
                 # s=sum([1 if e == None else 0 for e in sub_param.values()])
