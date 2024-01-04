@@ -5,7 +5,9 @@ import time
 from functools import wraps
 from logging.handlers import RotatingFileHandler
 from typing import Optional
+import datetime
 
+import numpy as np
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi import Request
@@ -22,7 +24,7 @@ from intentAgent_model import IntentAgent
 from prompt_helper import init_all_fun_prompt, FUNTION_CALLING_FORMAT_INSTRUCTIONS
 from redis_manger import get_version, set_version
 from tool_model import Model_Tool, Unknown_Intention_Model_Tool
-from utils import load_interface_template, save_interface_template, is_true_number, is_xxCH
+from utils import load_interface_template, save_interface_template, is_true_number, is_xxCH, get_current_weekday
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -43,7 +45,8 @@ from api_protocol import (
     ChatResponse,
     TemplateResponse,
     Intention_Search_Response,
-    Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp, Full_CompletionRequest
+    Funtion, Beautify_ChatCompletionRequest, ChatMessage, Chat_LinksResponse, LinksResp, Full_CompletionRequest,
+    FuntionResp
 )
 app.add_middleware(
     CORSMiddleware,
@@ -144,47 +147,71 @@ async def chat(request: ChatCompletionRequest):
 @raise_UnicornException
 async def beautify_chat(request: Beautify_ChatCompletionRequest):
     global  toos_dict,llm
+    current_time = datetime.datetime.now()
+    current_time = str(current_time)[:19] + "," + get_current_weekday()
+    current_date = current_time[:10]
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    before_yesterday = today - datetime.timedelta(days=2)
+
     funname_resp = request.funname_resp
+    funname_resp.append(FuntionResp(funtion_id="00000",resp="未查到信息，请尝试咨询其他业务"))
+    query=[]
+    for i, res in enumerate(funname_resp):
+        tool=toos_dict.get(res.funtion_id,None)
+        if tool:
+            description=tool.description
+            resp=f"信息{i+1}:{description},查询结果详情:{res.resp}"
+        else:
+            # if i>0:
+            #     resp = f"信息{i+1}:未知业务,查询结果详情,用户问题无法解答,【以上业务不满足用户问题,选择该业务信息回复】"
+            # else:
+            resp = f"信息{i+1}:{res.resp}"
+        query.append(resp)
+    query="\n".join(query)
 
-    query="\n".join([f"{i+1}.查询业务：{toos_dict[res.funtion_id].description},详情结果如下:{res.resp}" for i,res in enumerate(funname_resp)])
-    if query=="":
-        query="未查询到任何信息，请咨询其他业务"
+    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query,current_time=current_time)
 
-    content = FUNTION_CALLING_FORMAT_INSTRUCTIONS.format(content=query)
+    if request.message[-1].content.strip()=="":
+       return ChatResponse(status=200, message="请输入你的问题")
+
     mess = request.message
     if mess[0].role == "system":
         mess.pop(0)
+    mess = mess[-6:]
     mess.insert(0, ChatMessage(role="system", content=content))
     for i,role in enumerate(mess):
         if role.role in [ "assistant", "system","function"]:
             continue
         mc = role.content.strip()
-        if re.findall(r"XS[a-zA-Z0-9]+", mc):
+        if re.findall(r"XS[a-zA-Z0-9]+", mc) and i==len(mess)-1:
             role.content = mc + "(查看订单号详情,请仅仅根据幸福西饼已知查询业务信息回复我的问题相关业务)"
         else:
             if i==len(mess)-1:
-                role.content = mc + "(回复详情,请仅仅根据幸福西饼已知查询业务信息回复我的问题相关业务)"
+                role.content = mc + "(请仅仅根据聊天上下文或幸福西饼已知查询信息回复我的问题)"
 
     history = merge_message(mess)
-    top_p = 0.
+    top_p = 0.0 if np.random.random()<0.8 else 0.1
     response = call_qwen_funtion(mess, top_p=top_p)
     resp = response.choices[0].message.content
     i=1
     n=3
-
     while i<=n:
         print(i, resp)
-        top_p+=0.1
+        top_p=0.8
         i+=1
-        if is_true_number(resp,history)  and not is_xxCH(resp,history) :
+        #"？" not in resp and "?" not in resp and
+        if  is_true_number(resp,history)  and not is_xxCH(resp,history) and  "你的回复" not in resp and "系统背景" not in resp and "用户问题" not in resp :
+            logging.info(f"<chat>\n\nquery:\t{history}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+            i=0
             break
         else:
             response = call_qwen_funtion(mess,top_p=top_p)
             resp = response.choices[0].message.content
+            logging.info(f"<chat>\n\nquery:\t{history}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
     if i>n:
         resp="很抱歉，我无法提供您需要的信息。请咨询客服以获取更多帮助"
 
-    logging.info(f"<chat>\n\nquery:\t{history}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
     return ChatResponse(status=200, message=resp)
 
 
@@ -265,7 +292,7 @@ async  def intention_search(request):
     if len(query) >= 5 and len(m) > 0 and len(m[0]) == len(query):
         docs1 = search.calc_similarity_rank("订单号查询")
         docs2 = []
-    elif query == "帮助":
+    elif query == "帮助" or query == "#帮助":
         docs1 = search.calc_similarity_rank("帮助")
         docs2 = []
         mess="帮助"

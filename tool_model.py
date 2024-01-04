@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import re
 from typing import Any, Optional
 from langchain import LLMChain
 from langchain.base_language import BaseLanguageModel
@@ -46,7 +47,6 @@ class Model_Tool(functional_Tool):
         n = 3
         self.llm.top_p = 0
         while i < n:
-            print(i)
             resp_p = self.llm.predict(user_input)
             resp = resp_p
             logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
@@ -55,8 +55,9 @@ class Model_Tool(functional_Tool):
                 for k, v in resp.items():
                     if not v or k not in sub_param:
                         continue
-                    if "未知" in v.strip() or is_xyzchar(v.strip(), query.strip()):
+                    if "未知" in v.strip() or "幸福西饼"==v.strip() or is_xyzchar(v.strip(), query.strip()):
                         resp[k] = None
+
                 for k, v in sub_param.items():
                     if k in resp and sub_param[k] is None:
                         sub_param[k] = resp[k]
@@ -65,8 +66,33 @@ class Model_Tool(functional_Tool):
                         if len(sub_param[k]) > 0:
                             sub_param[k] = str(sub_param[k][0])
 
-                    if k.lower() in ["orderno","shopid"] and have_Ch(v):
-                        sub_param[k] = None
+                    if sub_param[k] :
+                        orderno=re.findall(r"XS[a-zA-Z0-9]+", sub_param[k])
+                        if len(orderno)>0:
+                            orderno=orderno[0]
+                            sub_param[k]=orderno
+                            continue
+                        if  k.lower() in ["orderno"] or "order" in k.lower() :
+                            orderno = re.findall(r"[a-zA-Z0-9]{5,}", sub_param[k])
+                            if len(orderno) > 0:
+                                orderno = orderno[0]
+                                sub_param[k] = orderno
+                            else:
+                                sub_param[k]=None
+                                continue
+                    ##带shop的字段
+                    if sub_param[k] and "shop" in k.lower():
+                        if sub_param[k].endswith("省") or sub_param[k].endswith("市") :
+                            sub_param[k]=None
+                            continue
+
+                        ##名称长度小于三就忽略
+                        if len(sub_param[k])<3  and sub_param[k] :
+                            sub_param[k]=None
+                            continue
+                        shopid=re.match(r"\d{8,}", sub_param[k])
+                        if shopid:
+                            sub_param[k]=shopid.group(0)
                 break
                 # ##超过一半的参数被提取出来之后，就不再启动重试机制
                 # s=sum([1 if e == None else 0 for e in sub_param.values()])

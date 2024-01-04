@@ -84,11 +84,11 @@ class IntentAgent(BaseSingleActionAgent):
         self.merge_summary()
         user_input = self.prompt2.format(intents=self.tool_names, intention_summary=self.summary, user_input=query)
         resp=[]
-        self.llm.top_p=0.1
+        self.llm.top_p=0.0
         for i in range(3):
             try:
                 resp = self.llm.predict(user_input)
-                logging.info(f"<chat>{i}{self.llm.top_p}\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
+                logging.info(f"<chat>\n\nquery:\t{user_input}\n<!-- *** -->\nresponse:\n{resp}\n\n</chat>")
                 resp=parse_json_markdown_for_list(resp)
                 resp=[e for e  in resp if e in self.tool_names and e!=self.default_intent_name]
                 # if len(resp)==0:

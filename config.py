@@ -15,4 +15,4 @@ def read_api_keys():
     return api_keys
 
 api_keys=read_api_keys()
-check_api_key=False
+check_api_key=True
